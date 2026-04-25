@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 function fmt(n: number) {
   return (Math.round(n * 10) / 10).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -30,6 +31,17 @@ export default function AdminTabs({
 
   type TabKey = 'summary' | 'deals' | 'export'
   const [tab, setTab] = useState<TabKey>('summary')
+  const [stoppingId, setStoppingId] = useState<string | null>(null)
+  const router = useRouter()
+
+  async function handleStop(deal: any) {
+    const empName = deal.employee?.name ?? '해당 직원'
+    if (!confirm(`"${deal.title}" (${empName}) 거래를 중단하시겠습니까?\n\n지금까지 누적된 E머니는 직원에게 귀속되며, 이후 거래는 발생하지 않습니다.`)) return
+    setStoppingId(deal.id)
+    await fetch(`/api/admin/deals/${deal.id}/stop`, { method: 'PATCH' })
+    setStoppingId(null)
+    router.refresh()
+  }
 
   // 누적 계산
   function cumCalc(empMonths: Record<number, any>, salary: number) {
@@ -238,7 +250,7 @@ export default function AdminTabs({
               <div key={deal.id} className="bg-white rounded-xl border p-5">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className={`text-xs px-2 py-0.5 rounded font-medium ${AFF_COLOR[empAff] ?? 'bg-gray-100 text-gray-600'}`}>{empAff}</span>
                       <span className="text-sm font-semibold text-gray-800">{deal.employee?.name}</span>
                       {deal.partner && (
@@ -254,7 +266,16 @@ export default function AdminTabs({
                       {deal.calc_logic} · <span className="text-blue-600 font-medium">{(deal.ratio * 100).toFixed(0)}%</span>
                     </p>
                   </div>
-                  <p className="text-xs text-gray-400 ml-4">{new Date(deal.created_at).toLocaleDateString('ko-KR')}</p>
+                  <div className="flex flex-col items-end gap-2 ml-4 flex-shrink-0">
+                    <p className="text-xs text-gray-400">{new Date(deal.created_at).toLocaleDateString('ko-KR')}</p>
+                    <button
+                      onClick={() => handleStop(deal)}
+                      disabled={stoppingId === deal.id}
+                      className="text-xs border border-red-300 text-red-500 px-3 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      {stoppingId === deal.id ? '중단 중...' : '거래중단'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )
