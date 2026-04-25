@@ -19,23 +19,25 @@ export default function ProposalForm({ employees, proposerId }: { employees: Emp
     e.preventDefault()
     if (!receiverId) return
     setLoading(true)
-    const supabase = createSupabaseBrowser()
-    const { error } = await supabase.from('deal_proposals').insert({
-      proposer_id: proposerId,
-      receiver_id: receiverId,
-      title,
-      calc_logic: calcLogic,
-      ratio: parseFloat(ratio) / 100,
-      description: description || null,
-      status: 'pending',
+    const res = await fetch('/api/proposals/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        receiver_id: receiverId,
+        title,
+        calc_logic: calcLogic,
+        ratio: parseFloat(ratio) / 100,
+        description: description || null,
+      }),
     })
+    const data = await res.json()
     setLoading(false)
-    if (!error) {
+    if (res.ok) {
       setSent(true)
       setReceiverId(''); setTitle(''); setCalcLogic(''); setRatio(''); setDescription('')
       setTimeout(() => { setSent(false); router.refresh() }, 1500)
     } else {
-      alert('전송 실패: ' + error.message)
+      alert('전송 실패: ' + data.error)
     }
   }
 

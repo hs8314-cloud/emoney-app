@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServer } from '@/lib/supabase-server'
+import { sendProposalResponseNotification } from '@/lib/email'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -10,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: me } = await supabase
-    .from('employees').select('id').eq('email', user.email).single()
+    .from('employees').select('id, name').eq('email', user.email).single()
 
   // 제안 조회 (수신자 본인 건만)
   const { data: proposal, error: fetchError } = await supabase
@@ -32,6 +33,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // 제안자 정보 조회 (이메일 알림용)
+  const { data: proposer } = await supabase
+    .from('employees').select('name, email').eq('id', proposal.proposer_id).single()
+
   // 수락 시 → performance_deals에 자동 등록
   if (status === 'accepted') {
     const { error: dealError } = await supabase
@@ -43,8 +48,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ratio: proposal.ratio,
         is_active: true,
       })
-
     if (dealError) return NextResponse.json({ error: '성과거래 등록 실패: ' + dealError.message }, { status: 500 })
+  }
+
+  // 제안자에게 이메일 알림
+  if (proposer?.email) {
+    await sendProposalResponseNotification({
+      toEmail: proposer.email,
+      toName: proposer.name,
+      fromName: me!.name,
+      title: proposal.title,
+      status: status as 'accepted' | 'rejected',
+    })
   }
 
   return NextResponse.json({ success: true })
