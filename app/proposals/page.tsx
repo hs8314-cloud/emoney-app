@@ -80,6 +80,7 @@ export default async function ProposalsPage() {
           closedProposals={closedProposals || []}
           allEmployees={allEmployees || []}
           meId={me.id}
+          mySalary={me.salary}
           pendingCount={pendingCount}
         />
       </main>

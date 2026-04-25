@@ -20,7 +20,7 @@ function AffiBadge({ code }: { code?: string }) {
 }
 
 export default function ProposalTabs({
-  activeDeals, receivedPending, sentPending, closedProposals, allEmployees, meId, pendingCount
+  activeDeals, receivedPending, sentPending, closedProposals, allEmployees, meId, mySalary, pendingCount
 }: {
   activeDeals: any[]
   receivedPending: any[]
@@ -28,6 +28,7 @@ export default function ProposalTabs({
   closedProposals: any[]
   allEmployees: any[]
   meId: string
+  mySalary: number
   pendingCount: number
 }) {
   const [tab, setTab] = useState<'active' | 'pending' | 'new'>('active')
@@ -70,7 +71,7 @@ export default function ProposalTabs({
               활성화된 성과거래가 없습니다
             </div>
           ) : activeDeals.map((deal: any) => (
-            <ActiveDealCard key={deal.id} deal={deal} />
+            <ActiveDealCard key={deal.id} deal={deal} salary={mySalary} />
           ))}
         </div>
       )}
