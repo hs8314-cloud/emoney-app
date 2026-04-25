@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import LogoutButton from '@/components/LogoutButton'
+import Link from 'next/link'
 
 function fmt(n: number) {
   return (Math.round(n * 10) / 10).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -79,7 +80,11 @@ export default async function DashboardPage() {
           <span className="ml-2 font-bold text-gray-900">{employee.name}</span>
           <span className="ml-2 text-gray-400 text-sm">님의 E머니</span>
         </div>
-        <LogoutButton />
+        <div className="flex items-center gap-4">
+          <Link href="/proposals" className="text-sm text-gray-500 hover:text-gray-700">성과거래 제안</Link>
+          <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700">설정</Link>
+          <LogoutButton />
+        </div>
       </header>
 
       <main className="max-w-3xl mx-auto p-6 space-y-6">

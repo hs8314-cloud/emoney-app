@@ -74,7 +74,11 @@ export default async function AdminPage() {
             KPI 입력
           </Link>
         </div>
-        <LogoutButton />
+        <div className="flex items-center gap-4">
+          <Link href="/proposals" className="text-sm text-gray-500 hover:text-gray-700">성과거래 제안</Link>
+          <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700">설정</Link>
+          <LogoutButton />
+        </div>
       </header>
 
       <main className="p-6">
