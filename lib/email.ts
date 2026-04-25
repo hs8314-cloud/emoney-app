@@ -52,6 +52,39 @@ export async function sendProposalNotification({
   })
 }
 
+// 취소 알림 (수신자에게)
+export async function sendProposalCancelNotification({
+  toEmail,
+  toName,
+  fromName,
+  title,
+}: {
+  toEmail: string
+  toName: string
+  fromName: string
+  title: string
+}) {
+  return resend.emails.send({
+    from: FROM,
+    to: toEmail,
+    subject: `[E머니] ${fromName}님이 거래 제안을 취소했습니다`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+        <h2 style="color: #6b7280;">거래 제안 취소</h2>
+        <p style="color: #374151;">${toName}님, 안녕하세요.<br/>
+        <strong>${fromName}</strong>님이 아래 거래 제안을 <strong>취소</strong>했습니다.</p>
+
+        <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin: 24px 0;">
+          <p style="margin: 0 0 4px; font-size: 13px; color: #6b7280;">거래 제목</p>
+          <p style="margin: 0; font-weight: 600; color: #111827;">${title}</p>
+        </div>
+
+        <p style="color: #9ca3af; font-size: 12px; margin-top: 32px;">E머니 성과 포인트 시스템</p>
+      </div>
+    `,
+  })
+}
+
 // 수락/거절 알림 (제안자에게)
 export async function sendProposalResponseNotification({
   toEmail,

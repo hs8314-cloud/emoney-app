@@ -3,6 +3,7 @@ import { useState } from 'react'
 import ProposalForm from './ProposalForm'
 import ProposalResponseButtons from '@/components/ProposalResponseButtons'
 import ProposalCancelButton from '@/components/ProposalCancelButton'
+import ActiveDealCard from '@/components/ActiveDealCard'
 
 const STATUS_LABEL: Record<string, string> = { pending: '검토 중', accepted: '수락됨', rejected: '거절됨' }
 const STATUS_COLOR: Record<string, string> = {
@@ -69,20 +70,7 @@ export default function ProposalTabs({
               활성화된 성과거래가 없습니다
             </div>
           ) : activeDeals.map((deal: any) => (
-            <div key={deal.id} className="bg-white rounded-xl border p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">활성</span>
-                  </div>
-                  <p className="font-semibold text-gray-900">{deal.title}</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {deal.calc_logic} · <span className="text-blue-600 font-medium">{(deal.ratio * 100).toFixed(0)}%</span>
-                  </p>
-                </div>
-                <p className="text-xs text-gray-400">{new Date(deal.created_at).toLocaleDateString('ko-KR')}</p>
-              </div>
-            </div>
+            <ActiveDealCard key={deal.id} deal={deal} />
           ))}
         </div>
       )}
