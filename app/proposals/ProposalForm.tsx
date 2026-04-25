@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 type Employee = { id: string; name: string; affiliation: any }
 
-export default function ProposalForm({ employees, proposerId }: { employees: Employee[], proposerId: string }) {
+export default function ProposalForm({ employees, proposerId, onSent }: { employees: Employee[], proposerId: string, onSent?: () => void }) {
   const router = useRouter()
   const [receiverId, setReceiverId] = useState('')
   const [title, setTitle] = useState('')
@@ -35,7 +35,7 @@ export default function ProposalForm({ employees, proposerId }: { employees: Emp
     if (res.ok) {
       setSent(true)
       setReceiverId(''); setTitle(''); setCalcLogic(''); setRatio(''); setDescription('')
-      setTimeout(() => { setSent(false); router.refresh() }, 1500)
+      setTimeout(() => { setSent(false); router.refresh(); onSent?.() }, 1500)
     } else {
       alert('전송 실패: ' + data.error)
     }
