@@ -8,7 +8,13 @@ function fmt(n: number) {
 
 export default async function Home() {
   // 기본: 2026년 3월 (1분기 마지막)
-  const results = await getAllEmployeeResults(2026, 3).catch(() => [])
+  let results: any[] = []
+  let debugError = ''
+  try {
+    results = await getAllEmployeeResults(2026, 3)
+  } catch (e: any) {
+    debugError = e?.message || JSON.stringify(e)
+  }
 
   return (
     <main className="min-h-screen bg-gray-50 p-6">
@@ -18,6 +24,13 @@ export default async function Home() {
           <h1 className="text-2xl font-bold text-gray-900">E머니 성과 현황</h1>
           <p className="text-gray-500 text-sm mt-1">2026년 3월 기준 · 단위: 백만원</p>
         </div>
+
+        {/* 디버그 */}
+        {debugError && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <strong>오류:</strong> {debugError}
+          </div>
+        )}
 
         {/* 테이블 */}
         <div className="bg-white rounded-xl shadow overflow-x-auto">
