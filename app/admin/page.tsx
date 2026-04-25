@@ -19,24 +19,37 @@ export default async function AdminPage() {
 
   if (me?.role !== 'admin') redirect('/dashboard')
 
-  // 전체 KPI 데이터 조회
-  const { data: kpiRows } = await supabase
-    .from('monthly_kpi')
-    .select(`*, performance_deal:performance_deals(*, employee:employees(*, affiliation:affiliations(*)))`)
-    .eq('year', 2026)
-    .in('month', MONTHS)
-    .order('month')
+  // Step 1: 전체 활성 거래 + 직원 정보 조회
+  const { data: allDeals } = await supabase
+    .from('performance_deals')
+    .select('*, employee:employees(id, name, salary, affiliation:affiliations(code))')
+    .eq('is_active', true)
+
+  const dealIds = (allDeals || []).map((d: any) => d.id)
+
+  // Step 2: 해당 거래들의 KPI 데이터 조회
+  const { data: kpiRows } = dealIds.length > 0
+    ? await supabase
+        .from('monthly_kpi')
+        .select('*')
+        .in('performance_deal_id', dealIds)
+        .eq('year', 2026)
+        .in('month', MONTHS)
+        .order('month')
+    : { data: [] }
+
+  const dealMap = Object.fromEntries((allDeals || []).map((d: any) => [d.id, d]))
 
   // 직원별로 그룹핑
   const employeeMap: Record<string, any> = {}
   for (const row of kpiRows || []) {
-    const deal = row.performance_deal
+    const deal = dealMap[row.performance_deal_id]
     const emp = deal?.employee
     if (!emp) continue
     if (!employeeMap[emp.id]) {
       employeeMap[emp.id] = {
         name: emp.name,
-        affiliation: emp.affiliation?.code,
+        affiliation: emp.affiliation?.code ?? emp.affiliation?.[0]?.code,
         salary: emp.salary,
         months: {},
       }
