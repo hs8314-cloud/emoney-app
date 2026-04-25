@@ -19,40 +19,28 @@ export default async function AdminPage() {
 
   if (me?.role !== 'admin') redirect('/dashboard')
 
-  // Step 1: 전체 활성 거래 + 직원 정보 조회
-  const { data: allDeals } = await supabase
-    .from('performance_deals')
-    .select('*, employee:employees(id, name, salary, affiliation:affiliations(code))')
-    .eq('is_active', true)
+  // 각 테이블 개별 조회 후 JS에서 합산 (중첩 join 버그 우회)
+  const [{ data: allDeals }, { data: allEmps }, { data: affiliations }, { data: kpiAll }] = await Promise.all([
+    supabase.from('performance_deals').select('id, title, calc_logic, ratio, employee_id').eq('is_active', true),
+    supabase.from('employees').select('id, name, salary, affiliation_id'),
+    supabase.from('affiliations').select('id, code'),
+    supabase.from('monthly_kpi').select('*').eq('year', 2026).in('month', MONTHS),
+  ])
 
-  const dealIds = (allDeals || []).map((d: any) => d.id)
-
-  // Step 2: 해당 거래들의 KPI 데이터 조회
-  const { data: kpiRows } = dealIds.length > 0
-    ? await supabase
-        .from('monthly_kpi')
-        .select('*')
-        .in('performance_deal_id', dealIds)
-        .eq('year', 2026)
-        .in('month', MONTHS)
-        .order('month')
-    : { data: [] }
-
+  const affMap = Object.fromEntries((affiliations || []).map((a: any) => [a.id, a.code]))
+  const empMap = Object.fromEntries((allEmps || []).map((e: any) => [e.id, { ...e, affCode: affMap[e.affiliation_id] }]))
   const dealMap = Object.fromEntries((allDeals || []).map((d: any) => [d.id, d]))
+  const activeDealIds = new Set((allDeals || []).map((d: any) => d.id))
 
   // 직원별로 그룹핑
   const employeeMap: Record<string, any> = {}
-  for (const row of kpiRows || []) {
+  for (const row of (kpiAll || [])) {
+    if (!activeDealIds.has(row.performance_deal_id)) continue
     const deal = dealMap[row.performance_deal_id]
-    const emp = deal?.employee
-    if (!emp) continue
+    const emp = empMap[deal?.employee_id]
+    if (!emp || !deal) continue
     if (!employeeMap[emp.id]) {
-      employeeMap[emp.id] = {
-        name: emp.name,
-        affiliation: emp.affiliation?.code ?? emp.affiliation?.[0]?.code,
-        salary: emp.salary,
-        months: {},
-      }
+      employeeMap[emp.id] = { name: emp.name, affiliation: emp.affCode, salary: emp.salary, months: {} }
     }
     const earned = row.kpi_value * deal.ratio
     const spent = row.direct_cost + row.purchase_cost
@@ -63,16 +51,18 @@ export default async function AdminPage() {
 
   const employees = Object.values(employeeMap)
 
-  // 전체 활성 거래 조회 (partner 포함)
-  const { data: activeDeals } = await supabase
+  // 전체 활성 거래 (JS에서 employee/partner 매핑)
+  const { data: allActiveDeals } = await supabase
     .from('performance_deals')
-    .select(`
-      *,
-      employee:employees!performance_deals_employee_id_fkey(name, affiliation:affiliations(code)),
-      partner:employees!performance_deals_partner_id_fkey(name, affiliation:affiliations(code))
-    `)
+    .select('*')
     .eq('is_active', true)
     .order('created_at', { ascending: false })
+
+  const activeDeals = (allActiveDeals || []).map((d: any) => ({
+    ...d,
+    employee: empMap[d.employee_id] ? { name: empMap[d.employee_id].name, affiliation: { code: empMap[d.employee_id].affCode } } : null,
+    partner: empMap[d.partner_id] ? { name: empMap[d.partner_id].name, affiliation: { code: empMap[d.partner_id].affCode } } : null,
+  }))
 
   // 고형석만 내보내기 권한
   const isExporter = me.name === '고형석'
