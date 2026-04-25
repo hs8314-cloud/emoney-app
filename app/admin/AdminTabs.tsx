@@ -75,18 +75,18 @@ export default function AdminTabs({
     URL.revokeObjectURL(url)
   }
 
-  // 전체 합계 행 + 배수
+  // 전체 합계 행 + 배수 (분모: 전 직원 급여합 × 2 × 고정 개월수)
   function totalRow() {
-    let totEarned = 0, totSpent = 0, totSalaryDenom = 0
+    let totEarned = 0, totSpent = 0, totSalary = 0
     for (const emp of employees) {
       const cum = cumCalc(emp.months, emp.salary)
       totEarned += cum.earned
       totSpent += cum.spent
-      const monthCount = months.filter(m => emp.months[m] !== undefined).length
-      totSalaryDenom += emp.salary * 2 * monthCount
+      totSalary += emp.salary
     }
     const totRemaining = totEarned - totSpent
-    const totMultiplier = totSalaryDenom > 0 ? totRemaining / totSalaryDenom : 0
+    const denom = totSalary * 2 * months.length
+    const totMultiplier = denom > 0 ? totRemaining / denom : 0
     return { earned: totEarned, spent: totSpent, remaining: totRemaining, multiplier: totMultiplier }
   }
 
