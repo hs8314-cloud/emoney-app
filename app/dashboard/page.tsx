@@ -29,12 +29,11 @@ export default async function DashboardPage() {
 
   // (관리자도 개인 대시보드 접근 허용 - 헤더에 관리자 링크 제공)
 
-  // 내 성과거래 ID 목록 먼저 조회
+  // 내 성과거래 ID 목록 먼저 조회 (중단된 거래도 포함 - 누적 데이터 표시 위해)
   const { data: myDeals } = await supabase
     .from('performance_deals')
-    .select('id, title, calc_logic, ratio')
+    .select('id, title, calc_logic, ratio, is_active')
     .eq('employee_id', employee.id)
-    .eq('is_active', true)
 
   const myDealIds = (myDeals || []).map((d: any) => d.id)
 
@@ -75,12 +74,13 @@ export default async function DashboardPage() {
 
   const currentMonth = monthly[monthly.length - 1]
 
-  // 성과거래 정보
+  // 성과거래 정보 (활성 우선, 없으면 중단된 거래 표시)
   const { data: deal } = await supabase
     .from('performance_deals')
     .select('*')
     .eq('employee_id', employee.id)
-    .eq('is_active', true)
+    .order('is_active', { ascending: false })
+    .limit(1)
     .single()
 
   return (
@@ -109,8 +109,13 @@ export default async function DashboardPage() {
       <main className="max-w-3xl mx-auto p-6 space-y-6">
         {/* 성과거래 카드 */}
         {deal && (
-          <div className="bg-white rounded-xl p-5 shadow-sm border">
-            <p className="text-xs text-gray-400 mb-1">나의 성과거래</p>
+          <div className={`bg-white rounded-xl p-5 shadow-sm border ${!deal.is_active ? 'opacity-70' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-xs text-gray-400">나의 성과거래</p>
+              {!deal.is_active && (
+                <span className="text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded font-medium">거래중단</span>
+              )}
+            </div>
             <p className="font-semibold text-gray-800">{deal.title}</p>
             <p className="text-sm text-gray-500 mt-1">
               산출 로직: <span className="text-blue-600">{deal.calc_logic}</span>
