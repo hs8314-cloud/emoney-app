@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 
-type Employee = { id: string; name: string; affiliation: { code: string } | null }
+type Employee = { id: string; name: string; affiliation: any }
 
 export default function ProposalForm({ employees, proposerId }: { employees: Employee[], proposerId: string }) {
   const router = useRouter()
@@ -52,7 +52,7 @@ export default function ProposalForm({ employees, proposerId }: { employees: Emp
           <option value="">-- 매입자를 선택하세요 --</option>
           {employees.map(emp => (
             <option key={emp.id} value={emp.id}>
-              [{emp.affiliation?.code}] {emp.name}
+              [{Array.isArray(emp.affiliation) ? emp.affiliation[0]?.code : emp.affiliation?.code}]{' '}{emp.name}
             </option>
           ))}
         </select>
