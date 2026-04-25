@@ -24,7 +24,7 @@ export async function getAllEmployeeResults(year: number, month: number) {
     const employee = deal.employee
     const salary = employee.salary
     const earned = row.kpi_value * deal.ratio
-    const spent = row.direct_cost + row.purchase_cost + salary
+    const spent = row.direct_cost + row.purchase_cost  // 급여는 쓴돈에 미포함
     const remaining = earned - spent
     const multiplier = salary * 2 > 0 ? remaining / (salary * 2) : 0
 
