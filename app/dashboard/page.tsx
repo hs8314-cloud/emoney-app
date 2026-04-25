@@ -27,8 +27,7 @@ export default async function DashboardPage() {
     )
   }
 
-  // 관리자면 admin으로 리다이렉트
-  if (employee.role === 'admin') redirect('/admin')
+  // (관리자도 개인 대시보드 접근 허용 - 헤더에 관리자 링크 제공)
 
   // 내 성과거래 ID 목록 먼저 조회
   const { data: myDeals } = await supabase
@@ -98,6 +97,9 @@ export default async function DashboardPage() {
           <span className="ml-2 text-gray-400 text-sm">님의 E머니</span>
         </div>
         <div className="flex items-center gap-4">
+          {employee.role === 'admin' && (
+            <Link href="/admin" className="text-sm bg-gray-800 text-white px-3 py-1 rounded-lg hover:bg-gray-700">관리자 홈</Link>
+          )}
           <Link href="/proposals" className="text-sm text-gray-500 hover:text-gray-700">성과거래</Link>
           <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700">설정</Link>
           <LogoutButton />
