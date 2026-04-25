@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import ProposalForm from './ProposalForm'
 import ProposalResponseButtons from '@/components/ProposalResponseButtons'
+import ProposalCancelButton from '@/components/ProposalCancelButton'
 
 const STATUS_LABEL: Record<string, string> = { pending: '검토 중', accepted: '수락됨', rejected: '거절됨' }
 const STATUS_COLOR: Record<string, string> = {
@@ -145,7 +146,10 @@ export default function ProposalTabs({
                         {p.calc_logic} · <span className="text-blue-600 font-medium">{(p.ratio * 100).toFixed(0)}%</span>
                       </p>
                     </div>
-                    <p className="text-xs text-gray-400">{new Date(p.created_at).toLocaleDateString('ko-KR')}</p>
+                    <div className="flex flex-col items-end gap-2">
+                      <p className="text-xs text-gray-400">{new Date(p.created_at).toLocaleDateString('ko-KR')}</p>
+                      <ProposalCancelButton proposalId={p.id} />
+                    </div>
                   </div>
                 </div>
               ))}
