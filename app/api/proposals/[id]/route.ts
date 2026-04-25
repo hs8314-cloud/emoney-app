@@ -37,18 +37,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { data: proposer } = await supabase
     .from('employees').select('name, email').eq('id', proposal.proposer_id).single()
 
-  // 수락 시 → performance_deals에 자동 등록
   if (status === 'accepted') {
-    const { error: dealError } = await supabase
-      .from('performance_deals')
-      .insert({
-        employee_id: proposal.proposer_id,
-        title: proposal.title,
-        calc_logic: proposal.calc_logic,
-        ratio: proposal.ratio,
-        is_active: true,
-      })
-    if (dealError) return NextResponse.json({ error: '성과거래 등록 실패: ' + dealError.message }, { status: 500 })
+    if (proposal.proposal_type === 'modify' && proposal.related_deal_id) {
+      // 변경 요청 수락 → 기존 거래 업데이트
+      const { error: dealError } = await supabase
+        .from('performance_deals')
+        .update({
+          title: proposal.title,
+          calc_logic: proposal.calc_logic,
+          ratio: proposal.ratio,
+        })
+        .eq('id', proposal.related_deal_id)
+
+      if (dealError) return NextResponse.json({ error: '거래 업데이트 실패: ' + dealError.message }, { status: 500 })
+    } else {
+      // 새 제안 수락 → performance_deals에 자동 등록 (partner_id 포함)
+      const { error: dealError } = await supabase
+        .from('performance_deals')
+        .insert({
+          employee_id: proposal.proposer_id,
+          partner_id: proposal.receiver_id,
+          title: proposal.title,
+          calc_logic: proposal.calc_logic,
+          ratio: proposal.ratio,
+          is_active: true,
+        })
+      if (dealError) return NextResponse.json({ error: '성과거래 등록 실패: ' + dealError.message }, { status: 500 })
+    }
   }
 
   // 제안자에게 이메일 알림
@@ -59,6 +74,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       fromName: me!.name,
       title: proposal.title,
       status: status as 'accepted' | 'rejected',
+      isModify: proposal.proposal_type === 'modify',
     })
   }
 

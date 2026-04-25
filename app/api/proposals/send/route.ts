@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServer } from '@/lib/supabase-server'
-import { sendProposalNotification } from '@/lib/email'
+import { sendProposalNotification, sendDealModifyRequestNotification } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServer()
@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { receiver_id, title, calc_logic, ratio, description } = body
+  const { receiver_id, title, calc_logic, ratio, description, proposal_type, related_deal_id } = body
 
   // 제안자 정보
   const { data: proposer } = await supabase
@@ -31,20 +31,33 @@ export async function POST(req: NextRequest) {
     ratio,
     description: description || null,
     status: 'pending',
+    proposal_type: proposal_type || 'new',
+    related_deal_id: related_deal_id || null,
   })
 
   if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
 
   // 이메일 발송
-  await sendProposalNotification({
-    toEmail: receiver.email,
-    toName: receiver.name,
-    fromName: proposer.name,
-    title,
-    calcLogic: calc_logic,
-    ratio,
-    description,
-  })
+  if (proposal_type === 'modify') {
+    await sendDealModifyRequestNotification({
+      toEmail: receiver.email,
+      toName: receiver.name,
+      fromName: proposer.name,
+      title,
+      calcLogic: calc_logic,
+      ratio,
+    })
+  } else {
+    await sendProposalNotification({
+      toEmail: receiver.email,
+      toName: receiver.name,
+      fromName: proposer.name,
+      title,
+      calcLogic: calc_logic,
+      ratio,
+      description,
+    })
+  }
 
   return NextResponse.json({ success: true })
 }

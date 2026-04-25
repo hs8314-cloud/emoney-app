@@ -87,12 +87,15 @@ export default function ProposalTabs({
               {receivedPending.length === 0 ? (
                 <p className="text-sm text-gray-400 py-4 text-center">받은 요청이 없습니다</p>
               ) : receivedPending.map((p: any) => (
-                <div key={p.id} className="bg-white rounded-xl border p-5">
+                <div key={p.id} className={`bg-white rounded-xl border p-5 ${p.proposal_type === 'modify' ? 'border-amber-200' : ''}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <AffiBadge code={p.proposer?.affiliation?.code ?? p.proposer?.affiliation?.[0]?.code} />
                         <span className="text-sm font-medium text-gray-700">← {p.proposer?.name}</span>
+                        {p.proposal_type === 'modify' && (
+                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium">변경요청</span>
+                        )}
                       </div>
                       <p className="font-semibold text-gray-900">{p.title}</p>
                       <p className="text-sm text-gray-500 mt-1">
@@ -119,12 +122,15 @@ export default function ProposalTabs({
               {sentPending.length === 0 ? (
                 <p className="text-sm text-gray-400 py-4 text-center">보낸 요청이 없습니다</p>
               ) : sentPending.map((p: any) => (
-                <div key={p.id} className="bg-white rounded-xl border p-5">
+                <div key={p.id} className={`bg-white rounded-xl border p-5 ${p.proposal_type === 'modify' ? 'border-amber-200' : ''}`}>
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <AffiBadge code={p.receiver?.affiliation?.code ?? p.receiver?.affiliation?.[0]?.code} />
                         <span className="text-sm font-medium text-gray-700">→ {p.receiver?.name}</span>
+                        {p.proposal_type === 'modify' && (
+                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium">변경요청</span>
+                        )}
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR['pending']}`}>
                           {STATUS_LABEL['pending']}
                         </span>
