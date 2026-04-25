@@ -75,7 +75,7 @@ export default async function AdminPage() {
           </Link>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="/proposals" className="text-sm text-gray-500 hover:text-gray-700">성과거래 제안</Link>
+          <Link href="/proposals" className="text-sm text-gray-500 hover:text-gray-700">성과거래</Link>
           <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700">설정</Link>
           <LogoutButton />
         </div>
