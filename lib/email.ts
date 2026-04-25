@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM = 'E머니 <noreply@emoney-app.vercel.app>'
+const FROM = 'E머니 <onboarding@resend.dev>'
 
 // 새 거래 제안 알림 (수신자에게)
 export async function sendProposalNotification({
