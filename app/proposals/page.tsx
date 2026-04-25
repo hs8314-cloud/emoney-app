@@ -16,12 +16,12 @@ export default async function ProposalsPage() {
 
   if (!me) redirect('/login')
 
-  // 1. 활성 거래 (본인의 performance_deals) - partner 정보 포함
+  // 1. 본인의 모든 거래 (활성 + 중단 포함) - partner 정보 포함
   const { data: activeDeals } = await supabase
     .from('performance_deals')
     .select('*, partner:employees!performance_deals_partner_id_fkey(id, name, email, affiliation:affiliations(code))')
     .eq('employee_id', me.id)
-    .eq('is_active', true)
+    .order('is_active', { ascending: false })
     .order('created_at', { ascending: false })
 
   // 2. 받은 승인 요청 (pending)

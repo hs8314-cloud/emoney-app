@@ -132,14 +132,20 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
     )
   }
 
+  const isStopped = !deal.is_active
+
   return (
-    <div className="bg-white rounded-xl border overflow-hidden">
+    <div className={`bg-white rounded-xl border overflow-hidden ${isStopped ? 'opacity-70' : ''}`}>
       {/* 카드 헤더 */}
       <div className="p-5">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">활성</span>
+              {isStopped ? (
+                <span className="text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded font-medium">거래중단</span>
+              ) : (
+                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">활성</span>
+              )}
               {partner ? (
                 <>
                   <span className={`text-xs px-2 py-0.5 rounded font-medium ${affColor}`}>{partnerAffCode}</span>
@@ -150,9 +156,9 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
               )}
               <p className="text-xs text-gray-400 ml-auto">{new Date(deal.created_at).toLocaleDateString('ko-KR')}</p>
             </div>
-            <p className="font-semibold text-gray-900">{title}</p>
+            <p className={`font-semibold ${isStopped ? 'text-gray-400' : 'text-gray-900'}`}>{title}</p>
             <p className="text-sm text-gray-500 mt-1">
-              {calcLogic} · <span className="text-blue-600 font-medium">{ratio}%</span>
+              {calcLogic} · <span className={isStopped ? 'text-gray-400 font-medium' : 'text-blue-600 font-medium'}>{ratio}%</span>
             </p>
           </div>
           <div className="flex gap-2 ml-4 flex-shrink-0">
@@ -160,14 +166,18 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
               className="text-xs border border-gray-300 text-gray-600 px-3 py-1 rounded hover:bg-gray-50 transition-colors">
               {showDetail ? '닫기' : '내용조회'}
             </button>
-            <button onClick={() => setMode('edit')}
-              className="text-xs border border-amber-300 text-amber-600 px-3 py-1 rounded hover:bg-amber-50 transition-colors">
-              변경요청
-            </button>
-            <button onClick={handleDelete} disabled={deleting}
-              className="text-xs border border-red-300 text-red-500 px-3 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50">
-              {deleting ? '...' : '삭제'}
-            </button>
+            {!isStopped && (
+              <>
+                <button onClick={() => setMode('edit')}
+                  className="text-xs border border-amber-300 text-amber-600 px-3 py-1 rounded hover:bg-amber-50 transition-colors">
+                  변경요청
+                </button>
+                <button onClick={handleDelete} disabled={deleting}
+                  className="text-xs border border-red-300 text-red-500 px-3 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50">
+                  {deleting ? '...' : '삭제'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

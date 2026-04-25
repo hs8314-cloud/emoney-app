@@ -34,7 +34,7 @@ export default function ProposalTabs({
   const [tab, setTab] = useState<'active' | 'pending' | 'new'>('active')
 
   const tabs = [
-    { key: 'active', label: '활성 거래', count: activeDeals.length },
+    { key: 'active', label: '활성 거래', count: activeDeals.filter((d: any) => d.is_active).length },
     { key: 'pending', label: '승인 요청', count: pendingCount },
     { key: 'new', label: '새 제안', count: null },
   ] as const
