@@ -75,18 +75,19 @@ export default function AdminTabs({
     URL.revokeObjectURL(url)
   }
 
-  // 전체 합계 행
+  // 전체 합계 행 + 배수
   function totalRow() {
-    const totEarned = employees.reduce((s, e) => {
-      const cum = cumCalc(e.months, e.salary)
-      return s + cum.earned
-    }, 0)
-    const totSpent = employees.reduce((s, e) => {
-      const cum = cumCalc(e.months, e.salary)
-      return s + cum.spent
-    }, 0)
+    let totEarned = 0, totSpent = 0, totSalaryDenom = 0
+    for (const emp of employees) {
+      const cum = cumCalc(emp.months, emp.salary)
+      totEarned += cum.earned
+      totSpent += cum.spent
+      const monthCount = months.filter(m => emp.months[m] !== undefined).length
+      totSalaryDenom += emp.salary * 2 * monthCount
+    }
     const totRemaining = totEarned - totSpent
-    return { earned: totEarned, spent: totSpent, remaining: totRemaining }
+    const totMultiplier = totSalaryDenom > 0 ? totRemaining / totSalaryDenom : 0
+    return { earned: totEarned, spent: totSpent, remaining: totRemaining, multiplier: totMultiplier }
   }
 
   const total = totalRow()
@@ -112,7 +113,7 @@ export default function AdminTabs({
       {tab === 'summary' && (
         <div>
           {/* 총합 요약 카드 */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-xl border p-4 text-center">
               <p className="text-xs text-gray-400 mb-1">전체 번돈 (누적)</p>
               <p className="text-xl font-bold text-blue-600">{fmt(total.earned)}</p>
@@ -128,23 +129,28 @@ export default function AdminTabs({
               <p className={`text-xl font-bold ${total.remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(total.remaining)}</p>
               <p className="text-xs text-gray-400 mt-0.5">백만원</p>
             </div>
+            <div className="bg-white rounded-xl border p-4 text-center">
+              <p className="text-xs text-gray-400 mb-1">전체 배수 (누적)</p>
+              <p className={`text-xl font-bold ${total.multiplier >= 1 ? 'text-emerald-600' : 'text-gray-500'}`}>{fmt(total.multiplier)}x</p>
+              <p className="text-xs text-gray-400 mt-0.5">남는돈 / 급여×2×개월</p>
+            </div>
           </div>
 
           {/* 직원별 상세 테이블 */}
-          <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
+          <div className="bg-white rounded-xl shadow-sm border overflow-x-auto overflow-y-auto max-h-[520px]">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500">
+              <thead className="bg-gray-50 text-xs text-gray-500 sticky top-0 z-20">
                 <tr>
-                  <th className="px-4 py-3 text-left sticky left-0 bg-gray-50">소속</th>
-                  <th className="px-4 py-3 text-left sticky left-16 bg-gray-50">이름</th>
+                  <th className="px-4 py-3 text-left sticky left-0 z-30 bg-gray-50">소속</th>
+                  <th className="px-4 py-3 text-left sticky left-16 z-30 bg-gray-50">이름</th>
                   {months.map(m => (
                     <th key={m} colSpan={3} className="px-4 py-3 text-center border-l">{m}월</th>
                   ))}
                   <th colSpan={4} className="px-4 py-3 text-center border-l bg-blue-50">누적</th>
                 </tr>
-                <tr className="text-xs text-gray-400 border-t">
-                  <th className="px-4 py-2 sticky left-0 bg-gray-50"></th>
-                  <th className="px-4 py-2 sticky left-16 bg-gray-50"></th>
+                <tr className="text-xs text-gray-400 border-t bg-gray-50">
+                  <th className="px-4 py-2 sticky left-0 z-30 bg-gray-50"></th>
+                  <th className="px-4 py-2 sticky left-16 z-30 bg-gray-50"></th>
                   {months.map(m => (
                     <>
                       <th key={`${m}-e`} className="px-3 py-2 text-right border-l">번돈</th>
