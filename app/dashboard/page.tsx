@@ -30,15 +30,32 @@ export default async function DashboardPage() {
   // 관리자면 admin으로 리다이렉트
   if (employee.role === 'admin') redirect('/admin')
 
-  // 성과거래 + 월별 KPI 조회
-  const { data: kpiRows } = await supabase
-    .from('monthly_kpi')
-    .select(`*, performance_deal:performance_deals(*, employee:employees(*))`)
-    .eq('performance_deal.employee_id', employee.id)
-    .eq('year', 2026)
-    .order('month')
+  // 내 성과거래 ID 목록 먼저 조회
+  const { data: myDeals } = await supabase
+    .from('performance_deals')
+    .select('id, title, calc_logic, ratio')
+    .eq('employee_id', employee.id)
+    .eq('is_active', true)
 
-  const rows = (kpiRows || []).filter((r: any) => r.performance_deal?.employee_id === employee.id)
+  const myDealIds = (myDeals || []).map((d: any) => d.id)
+
+  // 월별 KPI 조회 (deal_id 기준으로 안전하게 필터)
+  const { data: kpiRows } = myDealIds.length > 0
+    ? await supabase
+        .from('monthly_kpi')
+        .select('*')
+        .in('performance_deal_id', myDealIds)
+        .eq('year', 2026)
+        .order('month')
+    : { data: [] }
+
+  // deal 정보 매핑
+  const dealMap = Object.fromEntries((myDeals || []).map((d: any) => [d.id, d]))
+
+  const rows = (kpiRows || []).map((r: any) => ({
+    ...r,
+    performance_deal: { ...dealMap[r.performance_deal_id], employee_id: employee.id },
+  }))
 
   // 월별 계산
   const monthly = rows.map((r: any) => {
