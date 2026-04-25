@@ -49,11 +49,12 @@ export default async function DashboardPage() {
     return { month: r.month, earned, spent, remaining, multiplier, salary: employee.salary }
   })
 
-  // 누적 계산
+  // 누적 계산 (배수 = 누적 남는돈 ÷ (급여 × 2 × 개월수))
   const cumEarned = monthly.reduce((s, m) => s + m.earned, 0)
   const cumSpent = monthly.reduce((s, m) => s + m.spent, 0)
   const cumRemaining = cumEarned - cumSpent
-  const cumMultiplier = employee.salary * 2 > 0 ? cumRemaining / (employee.salary * 2) : 0
+  const monthCount = monthly.length
+  const cumMultiplier = employee.salary * 2 * monthCount > 0 ? cumRemaining / (employee.salary * 2 * monthCount) : 0
 
   const currentMonth = monthly[monthly.length - 1]
 

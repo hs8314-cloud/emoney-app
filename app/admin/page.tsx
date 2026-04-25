@@ -54,11 +54,14 @@ export default async function AdminPage() {
 
   const employees = Object.values(employeeMap)
 
-  // 누적 합계
-  function cumCalc(months: Record<number, any>) {
+  // 누적 합계 (배수 = 누적 남는돈 ÷ (급여 × 2 × 개월수))
+  function cumCalc(months: Record<number, any>, salary: number) {
     const earned = MONTHS.reduce((s, m) => s + (months[m]?.earned ?? 0), 0)
     const spent = MONTHS.reduce((s, m) => s + (months[m]?.spent ?? 0), 0)
-    return { earned, spent, remaining: earned - spent }
+    const remaining = earned - spent
+    const monthCount = MONTHS.filter(m => months[m] !== undefined).length
+    const multiplier = salary * 2 * monthCount > 0 ? remaining / (salary * 2 * monthCount) : 0
+    return { earned, spent, remaining, multiplier }
   }
 
   return (
@@ -108,7 +111,7 @@ export default async function AdminPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {employees.map((emp: any, i: number) => {
-                const cum = cumCalc(emp.months)
+                const cum = cumCalc(emp.months, emp.salary)
                 return (
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
