@@ -273,7 +273,7 @@ export default function AdminTabs({
                       disabled={stoppingId === deal.id}
                       className="text-xs border border-red-300 text-red-500 px-3 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
                     >
-                      {stoppingId === deal.id ? '중단 중...' : '거래중단'}
+                      {stoppingId === deal.id ? '중단 중...' : '중단처리'}
                     </button>
                   </div>
                 </div>

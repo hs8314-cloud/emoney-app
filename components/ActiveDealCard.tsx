@@ -79,7 +79,7 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
   // 월별 계산
   const monthly = kpiRows.map(r => {
     const earned = r.kpi_value * deal.ratio
-    const spent = r.direct_cost + r.purchase_cost
+    const spent = r.direct_cost + r.purchase_cost + (r.external_purchase_cost ?? 0)
     const remaining = earned - spent
     const multiplier = salary * 2 > 0 ? remaining / (salary * 2) : 0
     return { month: r.month, kpiValue: r.kpi_value, earned, spent, remaining, multiplier }

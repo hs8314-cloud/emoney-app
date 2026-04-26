@@ -43,7 +43,7 @@ export default async function AdminPage() {
       employeeMap[emp.id] = { name: emp.name, affiliation: emp.affCode, salary: emp.salary, months: {} }
     }
     const earned = row.kpi_value * deal.ratio
-    const spent = row.direct_cost + row.purchase_cost
+    const spent = row.direct_cost + row.purchase_cost + (row.external_purchase_cost ?? 0)
     const remaining = earned - spent
     const multiplier = emp.salary * 2 > 0 ? remaining / (emp.salary * 2) : 0
     employeeMap[emp.id].months[row.month] = { earned, spent, remaining, multiplier }

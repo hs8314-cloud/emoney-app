@@ -59,7 +59,7 @@ export default async function DashboardPage() {
   const monthly = rows.map((r: any) => {
     const deal = r.performance_deal
     const earned = r.kpi_value * deal.ratio
-    const spent = r.direct_cost + r.purchase_cost
+    const spent = r.direct_cost + r.purchase_cost + (r.external_purchase_cost ?? 0)
     const remaining = earned - spent
     const multiplier = employee.salary * 2 > 0 ? remaining / (employee.salary * 2) : 0
     return { month: r.month, earned, spent, remaining, multiplier, salary: employee.salary }

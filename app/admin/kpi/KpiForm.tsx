@@ -25,6 +25,7 @@ type KpiRow = {
   kpi_value: number
   direct_cost: number
   purchase_cost: number
+  external_purchase_cost: number
 }
 
 export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existingKpi: KpiRow[] }) {
@@ -33,14 +34,15 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
   const [saved, setSaved] = useState(false)
 
   // 초기값 세팅
-  const [values, setValues] = useState<Record<string, { kpi: string, direct: string, purchase: string }>>(() => {
-    const init: Record<string, { kpi: string, direct: string, purchase: string }> = {}
+  const [values, setValues] = useState<Record<string, { kpi: string, direct: string, purchase: string, external: string }>>(() => {
+    const init: Record<string, { kpi: string, direct: string, purchase: string, external: string }> = {}
     deals.forEach(d => {
       const existing = existingKpi.find(k => k.performance_deal_id === d.id && k.month === selectedMonth)
       init[d.id] = {
         kpi: existing ? String(existing.kpi_value) : '',
         direct: existing ? String(existing.direct_cost) : '',
         purchase: existing ? String(existing.purchase_cost) : '',
+        external: existing ? String(existing.external_purchase_cost ?? 0) : '',
       }
     })
     return init
@@ -48,20 +50,21 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
 
   function handleMonthChange(m: number) {
     setSelectedMonth(m)
-    const next: Record<string, { kpi: string, direct: string, purchase: string }> = {}
+    const next: Record<string, { kpi: string, direct: string, purchase: string, external: string }> = {}
     deals.forEach(d => {
       const existing = existingKpi.find(k => k.performance_deal_id === d.id && k.month === m)
       next[d.id] = {
         kpi: existing ? String(existing.kpi_value) : '',
         direct: existing ? String(existing.direct_cost) : '',
         purchase: existing ? String(existing.purchase_cost) : '',
+        external: existing ? String(existing.external_purchase_cost ?? 0) : '',
       }
     })
     setValues(next)
     setSaved(false)
   }
 
-  function handleChange(dealId: string, field: 'kpi' | 'direct' | 'purchase', val: string) {
+  function handleChange(dealId: string, field: 'kpi' | 'direct' | 'purchase' | 'external', val: string) {
     setValues(prev => ({ ...prev, [dealId]: { ...prev[dealId], [field]: val } }))
     setSaved(false)
   }
@@ -78,6 +81,7 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
         kpi_value: parseFloat(values[d.id]?.kpi || '0'),
         direct_cost: parseFloat(values[d.id]?.direct || '0'),
         purchase_cost: parseFloat(values[d.id]?.purchase || '0'),
+        external_purchase_cost: parseFloat(values[d.id]?.external || '0'),
       }))
 
     const { error } = await supabase
@@ -119,7 +123,8 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
               <th className="px-4 py-3 text-left">산출로직</th>
               <th className="px-4 py-3 text-right">KPI 값</th>
               <th className="px-4 py-3 text-right">직접비</th>
-              <th className="px-4 py-3 text-right">매입비</th>
+              <th className="px-4 py-3 text-right">내부매입</th>
+              <th className="px-4 py-3 text-right text-orange-600">외부매입</th>
               <th className="px-4 py-3 text-right text-blue-600">번돈 (예상)</th>
             </tr>
           </thead>
@@ -164,6 +169,15 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
                       value={v.purchase}
                       onChange={e => handleChange(d.id, 'purchase', e.target.value)}
                       className="w-20 text-right border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      placeholder="0"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      type="number"
+                      value={v.external}
+                      onChange={e => handleChange(d.id, 'external', e.target.value)}
+                      className="w-20 text-right border border-orange-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
                       placeholder="0"
                     />
                   </td>
