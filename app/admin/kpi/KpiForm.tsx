@@ -113,9 +113,9 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
       </div>
 
       {/* 입력 테이블 */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border overflow-x-auto overflow-y-auto max-h-[600px]">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-xs text-gray-500">
+          <thead className="bg-gray-50 text-xs text-gray-500 sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3 text-left">소속</th>
               <th className="px-4 py-3 text-left">이름</th>

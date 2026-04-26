@@ -49,13 +49,13 @@ export default async function KpiInputPage() {
         </div>
       </header>
       <main className="max-w-6xl mx-auto p-6">
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 space-y-1">
-          <p className="font-semibold">📋 KPI 입력 안내</p>
-          <p>· <strong>KPI 값</strong>: 해당 월의 성과 지표 (영업이익, 매출액 등) — 단위: 백만원</p>
-          <p>· <strong>직접비</strong>: 해당 거래에서 직접 발생한 비용 (인건비, 운영비 등)</p>
-          <p>· <strong>내부매입</strong>: 다른 직원의 성과를 매입한 금액 (자동 산출 기준값)</p>
-          <p>· <strong>외부매입</strong>: 내부 거래 외 별도 외부 매입 발생 시 입력</p>
-          <p>· <strong>번돈</strong> = KPI 값 × 비율 &nbsp;|&nbsp; <strong>쓴돈</strong> = 직접비 + 내부매입 + 외부매입 &nbsp;|&nbsp; <strong>남는돈</strong> = 번돈 − 쓴돈</p>
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 text-xs text-blue-800 flex flex-wrap gap-x-4 gap-y-0.5 items-center">
+          <span className="font-semibold text-blue-900 mr-1">📋 입력 안내</span>
+          <span><strong>KPI 값</strong>: 월 성과지표 (백만원)</span>
+          <span><strong>직접비</strong>: 직접 발생 비용</span>
+          <span><strong>내부매입</strong>: 내부 성과 매입액</span>
+          <span><strong>외부매입</strong>: 외부 별도 매입</span>
+          <span className="text-blue-700">번돈 = KPI×비율 · 쓴돈 = 직접비+내부+외부 · 남는돈 = 번돈−쓴돈</span>
         </div>
         <KpiForm deals={deals} existingKpi={existingKpi || []} />
       </main>
