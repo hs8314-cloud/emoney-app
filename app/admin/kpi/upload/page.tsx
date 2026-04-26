@@ -43,7 +43,7 @@ export default async function KpiUploadPage() {
           <p>③ 미리보기에서 번돈·남는돈·매입 기여액 확인 후 <strong>확정 저장</strong></p>
           <p className="text-blue-600">→ 저장 즉시 매입자의 purchase_cost가 자동 계산·반영됩니다</p>
         </div>
-        <UploadForm deals={deals} />
+        <UploadForm deals={deals as any} />
       </main>
     </div>
   )
