@@ -240,7 +240,7 @@ export default function AdminTabs({
 
       {/* 성과거래 탭 */}
       {tab === 'deals' && (
-        <div className="space-y-3">
+        <div className="space-y-3 overflow-y-auto max-h-[620px] pr-1">
           {activeDeals.length === 0 ? (
             <div className="bg-white rounded-xl border p-8 text-center text-gray-400">활성 거래가 없습니다</div>
           ) : activeDeals.map((deal: any) => {
