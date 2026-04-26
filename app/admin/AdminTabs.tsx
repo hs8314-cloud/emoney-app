@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createSupabaseBrowser } from '@/lib/supabase-browser'
 
 function fmt(n: number) {
   return (Math.round(n * 10) / 10).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -32,7 +33,29 @@ export default function AdminTabs({
   type TabKey = 'summary' | 'deals' | 'export'
   const [tab, setTab] = useState<TabKey>('summary')
   const [stoppingId, setStoppingId] = useState<string | null>(null)
+  const [dealDetail, setDealDetail] = useState<Record<string, { loading: boolean; rows: any[] }>>({})
   const router = useRouter()
+
+  async function handleToggleDetail(dealId: string, ratio: number) {
+    if (dealDetail[dealId]?.rows.length > 0) {
+      setDealDetail(prev => ({ ...prev, [dealId]: { loading: false, rows: [] } }))
+      return
+    }
+    setDealDetail(prev => ({ ...prev, [dealId]: { loading: true, rows: [] } }))
+    const supabase = createSupabaseBrowser()
+    const { data } = await supabase
+      .from('monthly_kpi')
+      .select('month, kpi_value, direct_cost, purchase_cost, external_purchase_cost')
+      .eq('performance_deal_id', dealId)
+      .eq('year', 2026)
+      .order('month')
+    const rows = (data || []).map(r => {
+      const earned = r.kpi_value * ratio
+      const spent = r.direct_cost + r.purchase_cost + (r.external_purchase_cost ?? 0)
+      return { ...r, earned, spent, remaining: earned - spent }
+    })
+    setDealDetail(prev => ({ ...prev, [dealId]: { loading: false, rows } }))
+  }
 
   async function handleStop(deal: any) {
     const empName = deal.employee?.name ?? '해당 직원'
@@ -247,8 +270,8 @@ export default function AdminTabs({
             const partnerAff = deal.partner?.affiliation?.code ?? deal.partner?.affiliation?.[0]?.code
             const empAff = deal.employee?.affiliation?.code ?? deal.employee?.affiliation?.[0]?.code
             return (
-              <div key={deal.id} className="bg-white rounded-xl border p-5">
-                <div className="flex items-start justify-between">
+              <div key={deal.id} className="bg-white rounded-xl border overflow-hidden">
+                <div className="p-5 flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className={`text-xs px-2 py-0.5 rounded font-medium ${AFF_COLOR[empAff] ?? 'bg-gray-100 text-gray-600'}`}>{empAff}</span>
@@ -268,15 +291,87 @@ export default function AdminTabs({
                   </div>
                   <div className="flex flex-col items-end gap-2 ml-4 flex-shrink-0">
                     <p className="text-xs text-gray-400">{new Date(deal.created_at).toLocaleDateString('ko-KR')}</p>
-                    <button
-                      onClick={() => handleStop(deal)}
-                      disabled={stoppingId === deal.id}
-                      className="text-xs border border-red-300 text-red-500 px-3 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
-                    >
-                      {stoppingId === deal.id ? '중단 중...' : '중단처리'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleToggleDetail(deal.id, deal.ratio)}
+                        className="text-xs border border-blue-300 text-blue-600 px-3 py-1 rounded hover:bg-blue-50 transition-colors"
+                      >
+                        {dealDetail[deal.id]?.rows.length > 0 ? '닫기' : '거래내용조회'}
+                      </button>
+                      <button
+                        onClick={() => handleStop(deal)}
+                        disabled={stoppingId === deal.id}
+                        className="text-xs border border-red-300 text-red-500 px-3 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
+                      >
+                        {stoppingId === deal.id ? '중단 중...' : '중단처리'}
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                {/* 월별 실적 상세 */}
+                {dealDetail[deal.id] && (
+                  <div className="border-t bg-gray-50 px-5 py-4">
+                    {dealDetail[deal.id].loading ? (
+                      <p className="text-sm text-gray-400 text-center py-3">불러오는 중...</p>
+                    ) : dealDetail[deal.id].rows.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-3">입력된 KPI 데이터가 없습니다</p>
+                    ) : (() => {
+                      const rows = dealDetail[deal.id].rows
+                      const totEarned = rows.reduce((s, r) => s + r.earned, 0)
+                      const totDirect = rows.reduce((s, r) => s + r.direct_cost, 0)
+                      const totPurchase = rows.reduce((s, r) => s + r.purchase_cost, 0)
+                      const totExternal = rows.reduce((s, r) => s + (r.external_purchase_cost ?? 0), 0)
+                      const totSpent = rows.reduce((s, r) => s + r.spent, 0)
+                      const totRemaining = rows.reduce((s, r) => s + r.remaining, 0)
+                      return (
+                        <>
+                          <p className="text-xs text-gray-400 mb-3">2026년 월별 실적 · 단위: 백만원</p>
+                          <table className="w-full text-sm">
+                            <thead className="text-xs text-gray-500">
+                              <tr className="border-b border-gray-200">
+                                <th className="py-1.5 text-left">월</th>
+                                <th className="py-1.5 text-right">KPI값</th>
+                                <th className="py-1.5 text-right text-blue-600">번돈</th>
+                                <th className="py-1.5 text-right">직접비</th>
+                                <th className="py-1.5 text-right">내부매입</th>
+                                <th className="py-1.5 text-right text-orange-500">외부매입</th>
+                                <th className="py-1.5 text-right text-red-400">쓴돈계</th>
+                                <th className="py-1.5 text-right font-semibold text-gray-700">남는돈</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {rows.map(r => (
+                                <tr key={r.month} className="hover:bg-white">
+                                  <td className="py-2 text-gray-600 font-medium">{r.month}월</td>
+                                  <td className="py-2 text-right text-gray-500">{fmt(r.kpi_value)}</td>
+                                  <td className="py-2 text-right text-blue-600 font-medium">{fmt(r.earned)}</td>
+                                  <td className="py-2 text-right text-gray-400">{fmt(r.direct_cost)}</td>
+                                  <td className="py-2 text-right text-gray-400">{fmt(r.purchase_cost)}</td>
+                                  <td className="py-2 text-right text-orange-500">{fmt(r.external_purchase_cost ?? 0)}</td>
+                                  <td className="py-2 text-right text-red-400">{fmt(r.spent)}</td>
+                                  <td className={`py-2 text-right font-bold ${r.remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(r.remaining)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot className="border-t-2 border-gray-300 text-sm font-semibold">
+                              <tr>
+                                <td className="pt-2 text-gray-700">누적</td>
+                                <td></td>
+                                <td className="pt-2 text-right text-blue-600">{fmt(totEarned)}</td>
+                                <td className="pt-2 text-right text-gray-400">{fmt(totDirect)}</td>
+                                <td className="pt-2 text-right text-gray-400">{fmt(totPurchase)}</td>
+                                <td className="pt-2 text-right text-orange-500">{fmt(totExternal)}</td>
+                                <td className="pt-2 text-right text-red-400">{fmt(totSpent)}</td>
+                                <td className={`pt-2 text-right font-bold ${totRemaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(totRemaining)}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </>
+                      )
+                    })()}
+                  </div>
+                )}
               </div>
             )
           })}
