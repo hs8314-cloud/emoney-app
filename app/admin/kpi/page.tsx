@@ -49,6 +49,12 @@ export default async function KpiInputPage() {
         </div>
       </header>
       <main className="max-w-6xl mx-auto p-6">
+        <div className="flex justify-end mb-3">
+          <Link href="/admin/kpi/upload"
+            className="bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors font-medium">
+            📂 AMIS 업로드 (자동계산)
+          </Link>
+        </div>
         <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 text-xs text-blue-800 flex flex-wrap gap-x-4 gap-y-0.5 items-center">
           <span className="font-semibold text-blue-900 mr-1">📋 입력 안내</span>
           <span><strong>KPI 값</strong>: 월 성과지표 (백만원)</span>
