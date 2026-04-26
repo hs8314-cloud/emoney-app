@@ -34,7 +34,42 @@ export default function AdminTabs({
   const [tab, setTab] = useState<TabKey>('summary')
   const [stoppingId, setStoppingId] = useState<string | null>(null)
   const [dealDetail, setDealDetail] = useState<Record<string, { loading: boolean; rows: any[] }>>({})
+  // 셀 조회 상세: key = `${dealId}-${month}-${field}`
+  const [openCell, setOpenCell] = useState<string | null>(null)
+  const [cellData, setCellData] = useState<Record<string, any>>({})
+  const [cellLoading, setCellLoading] = useState<string | null>(null)
   const router = useRouter()
+
+  async function handleCellDetail(dealId: string, month: number, field: 'earned' | 'purchase' | 'external', row: any) {
+    const key = `${dealId}-${month}-${field}`
+    if (openCell === key) { setOpenCell(null); return }
+    setOpenCell(key)
+    if (cellData[key]) return  // 이미 로드됨
+
+    setCellLoading(key)
+    const supabase = createSupabaseBrowser()
+
+    if (field === 'earned') {
+      // 번돈: 계산식만 표시 (API 불필요)
+      setCellData(prev => ({ ...prev, [key]: { type: 'earned', kpi: row.kpi_value, ratio: row._ratio, earned: row.earned } }))
+    } else if (field === 'purchase') {
+      // 내부매입: 기여 판매자 역계산 API
+      const res = await fetch(`/api/admin/kpi/purchase-breakdown?dealId=${dealId}&year=2026&month=${month}`)
+      const data = await res.json()
+      setCellData(prev => ({ ...prev, [key]: data }))
+    } else if (field === 'external') {
+      // 외부매입: external_purchase_details 조회
+      const { data } = await supabase
+        .from('external_purchase_details')
+        .select('description, amount')
+        .eq('performance_deal_id', dealId)
+        .eq('year', 2026)
+        .eq('month', month)
+        .order('created_at')
+      setCellData(prev => ({ ...prev, [key]: { items: data || [] } }))
+    }
+    setCellLoading(null)
+  }
 
   async function handleToggleDetail(dealId: string, ratio: number) {
     if (dealDetail[dealId]?.rows.length > 0) {
@@ -52,7 +87,7 @@ export default function AdminTabs({
     const rows = (data || []).map(r => {
       const earned = r.kpi_value * ratio
       const spent = r.direct_cost + r.purchase_cost + (r.external_purchase_cost ?? 0)
-      return { ...r, earned, spent, remaining: earned - spent }
+      return { ...r, earned, spent, remaining: earned - spent, _ratio: ratio }
     })
     setDealDetail(prev => ({ ...prev, [dealId]: { loading: false, rows } }))
   }
@@ -341,18 +376,86 @@ export default function AdminTabs({
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                              {rows.map(r => (
+                              {rows.map(r => {
+                                const earnedKey = `${deal.id}-${r.month}-earned`
+                                const purchaseKey = `${deal.id}-${r.month}-purchase`
+                                const externalKey = `${deal.id}-${r.month}-external`
+                                return (
+                                <>
                                 <tr key={r.month} className="hover:bg-white">
                                   <td className="py-2 text-gray-600 font-medium">{r.month}월</td>
                                   <td className="py-2 text-right text-gray-500">{fmt(r.kpi_value)}</td>
-                                  <td className="py-2 text-right text-blue-600 font-medium">{fmt(r.earned)}</td>
+                                  <td className="py-2 text-right">
+                                    <span className="text-blue-600 font-medium">{fmt(r.earned)}</span>
+                                    <button onClick={() => handleCellDetail(deal.id, r.month, 'earned', r)} className={`ml-1 text-xs transition-colors ${openCell === earnedKey ? 'text-blue-500' : 'text-gray-300 hover:text-blue-400'}`}>🔍</button>
+                                  </td>
                                   <td className="py-2 text-right text-gray-400">{fmt(r.direct_cost)}</td>
-                                  <td className="py-2 text-right text-gray-400">{fmt(r.purchase_cost)}</td>
-                                  <td className="py-2 text-right text-orange-500">{fmt(r.external_purchase_cost ?? 0)}</td>
+                                  <td className="py-2 text-right">
+                                    <span className="text-gray-400">{fmt(r.purchase_cost)}</span>
+                                    {r.purchase_cost !== 0 && <button onClick={() => handleCellDetail(deal.id, r.month, 'purchase', r)} className={`ml-1 text-xs transition-colors ${openCell === purchaseKey ? 'text-blue-500' : 'text-gray-300 hover:text-blue-400'}`}>🔍</button>}
+                                  </td>
+                                  <td className="py-2 text-right">
+                                    <span className="text-orange-500">{fmt(r.external_purchase_cost ?? 0)}</span>
+                                    {(r.external_purchase_cost ?? 0) !== 0 && <button onClick={() => handleCellDetail(deal.id, r.month, 'external', r)} className={`ml-1 text-xs transition-colors ${openCell === externalKey ? 'text-orange-500' : 'text-gray-300 hover:text-orange-400'}`}>🔍</button>}
+                                  </td>
                                   <td className="py-2 text-right text-red-400">{fmt(r.spent)}</td>
                                   <td className={`py-2 text-right font-bold ${r.remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(r.remaining)}</td>
                                 </tr>
-                              ))}
+                                {/* 셀 조회 상세 행 */}
+                                {(openCell === earnedKey || openCell === purchaseKey || openCell === externalKey) && (() => {
+                                  const activeKey = openCell!
+                                  const d = cellData[activeKey]
+                                  const isLoading = cellLoading === activeKey
+                                  return (
+                                    <tr key={`detail-${r.month}`} className="bg-blue-50">
+                                      <td colSpan={8} className="px-3 py-2.5">
+                                        {isLoading ? (
+                                          <span className="text-xs text-gray-400">불러오는 중...</span>
+                                        ) : !d ? null : openCell === earnedKey ? (
+                                          <span className="text-xs text-blue-700">
+                                            KPI <strong>{fmt(d.kpi)}</strong> × 비율 <strong>{(d.ratio * 100).toFixed(0)}%</strong> = <strong>{fmt(d.earned)}</strong> 백만원
+                                          </span>
+                                        ) : openCell === purchaseKey ? (
+                                          <div className="text-xs space-y-0.5">
+                                            {d.type === 'seller' ? (
+                                              <span className="text-gray-600">→ <strong>{d.partnerName}</strong>에게 지급: <strong className="text-orange-600">{fmt(d.amount)}</strong> 백만원</span>
+                                            ) : d.sellers?.length === 0 ? (
+                                              <span className="text-gray-400">기여 판매자 없음</span>
+                                            ) : (
+                                              <>
+                                                {d.sellers.map((s: any) => (
+                                                  <div key={s.name} className="flex gap-2 text-gray-600">
+                                                    <span className="w-16 font-medium">{s.name}</span>
+                                                    <span className="text-gray-400">{s.isFullEarned ? '번돈 전액' : '남는돈'}</span>
+                                                    <span className="text-orange-600 font-medium">+{fmt(s.contribution)}</span>
+                                                  </div>
+                                                ))}
+                                                <div className="pt-0.5 border-t border-blue-200 text-gray-700 font-semibold">합계 {fmt(d.total)} 백만원</div>
+                                              </>
+                                            )}
+                                          </div>
+                                        ) : openCell === externalKey ? (
+                                          <div className="text-xs space-y-0.5">
+                                            {d.items?.length === 0 ? (
+                                              <span className="text-gray-400">상세 내역 없음 (KPI 입력 폼에서 항목 추가 가능)</span>
+                                            ) : (
+                                              <>
+                                                {d.items.map((item: any, i: number) => (
+                                                  <div key={i} className="flex gap-3 text-gray-600">
+                                                    <span className="flex-1">{item.description}</span>
+                                                    <span className="text-orange-600 font-medium">{fmt(item.amount)} 백만</span>
+                                                  </div>
+                                                ))}
+                                              </>
+                                            )}
+                                          </div>
+                                        ) : null}
+                                      </td>
+                                    </tr>
+                                  )
+                                })()}
+                                </>
+                              )})}
                             </tbody>
                             <tfoot className="border-t-2 border-gray-300 text-sm font-semibold">
                               <tr>

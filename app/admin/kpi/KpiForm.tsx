@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
@@ -28,12 +28,23 @@ type KpiRow = {
   external_purchase_cost: number
 }
 
+type ExItem = { id?: string; desc: string; amount: string }
+
 export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existingKpi: KpiRow[] }) {
   const [selectedMonth, setSelectedMonth] = useState(3)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [settling, setSettling] = useState(false)
   const [settleResult, setSettleResult] = useState<{ buyer: string; amount: number }[] | null>(null)
+
+  // 외부매입 상세 섹션 state
+  const [exDealId, setExDealId] = useState<string>('')
+  const [exItems, setExItems] = useState<ExItem[]>([])
+  const [exLoadedKey, setExLoadedKey] = useState<string>('')
+  const [exSaving, setExSaving] = useState(false)
+  const [exSaved, setExSaved] = useState(false)
+  const [newDesc, setNewDesc] = useState('')
+  const [newAmount, setNewAmount] = useState('')
 
   // 초기값 세팅
   const [values, setValues] = useState<Record<string, { kpi: string, direct: string, purchase: string, external: string }>>(() => {
@@ -64,6 +75,97 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
     })
     setValues(next)
     setSaved(false)
+    // 월 바뀌면 외부매입 상세 리셋
+    setExItems([])
+    setExLoadedKey('')
+    setExSaved(false)
+  }
+
+  // 외부매입 상세 로드 (거래 또는 월 변경 시)
+  useEffect(() => {
+    if (!exDealId) { setExItems([]); return }
+    const key = `${exDealId}-${selectedMonth}`
+    if (exLoadedKey === key) return
+    const supabase = createSupabaseBrowser()
+    supabase
+      .from('external_purchase_details')
+      .select('id, description, amount')
+      .eq('performance_deal_id', exDealId)
+      .eq('year', YEAR)
+      .eq('month', selectedMonth)
+      .order('created_at')
+      .then(({ data }) => {
+        setExItems((data || []).map((d: any) => ({ id: d.id, desc: d.description, amount: String(d.amount) })))
+        setExLoadedKey(key)
+      })
+  }, [exDealId, selectedMonth])
+
+  // exItems 합산 → 메인 테이블 external 값 동기화
+  useEffect(() => {
+    if (!exDealId || exLoadedKey !== `${exDealId}-${selectedMonth}`) return
+    const total = exItems.reduce((s, i) => s + parseFloat(i.amount || '0'), 0)
+    setValues(prev => ({ ...prev, [exDealId]: { ...prev[exDealId], external: String(total) } }))
+  }, [exItems])
+
+  function handleAddItem() {
+    if (!newDesc.trim() || !newAmount) return
+    setExItems(prev => [...prev, { desc: newDesc.trim(), amount: newAmount }])
+    setNewDesc('')
+    setNewAmount('')
+    setExSaved(false)
+  }
+
+  function handleRemoveItem(idx: number) {
+    setExItems(prev => prev.filter((_, i) => i !== idx))
+    setExSaved(false)
+  }
+
+  async function handleExSave() {
+    if (!exDealId) return
+    setExSaving(true)
+    const supabase = createSupabaseBrowser()
+    const total = exItems.reduce((s, i) => s + parseFloat(i.amount || '0'), 0)
+
+    // 기존 항목 삭제 후 재입력
+    await supabase.from('external_purchase_details')
+      .delete()
+      .eq('performance_deal_id', exDealId)
+      .eq('year', YEAR)
+      .eq('month', selectedMonth)
+
+    if (exItems.length > 0) {
+      await supabase.from('external_purchase_details').insert(
+        exItems.map(i => ({
+          performance_deal_id: exDealId,
+          year: YEAR,
+          month: selectedMonth,
+          description: i.desc,
+          amount: parseFloat(i.amount || '0'),
+        }))
+      )
+    }
+
+    // monthly_kpi external_purchase_cost도 동기화
+    const { data: existing } = await supabase
+      .from('monthly_kpi')
+      .select('id')
+      .eq('performance_deal_id', exDealId)
+      .eq('year', YEAR)
+      .eq('month', selectedMonth)
+      .maybeSingle()
+
+    if (existing) {
+      await supabase.from('monthly_kpi').update({ external_purchase_cost: total }).eq('id', existing.id)
+    } else {
+      await supabase.from('monthly_kpi').insert({
+        performance_deal_id: exDealId, year: YEAR, month: selectedMonth,
+        kpi_value: 0, direct_cost: 0, purchase_cost: 0, external_purchase_cost: total,
+      })
+    }
+
+    setExLoadedKey(`${exDealId}-${selectedMonth}`)
+    setExSaving(false)
+    setExSaved(true)
   }
 
   function handleChange(dealId: string, field: 'kpi' | 'direct' | 'purchase' | 'external', val: string) {
@@ -132,11 +234,12 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
           </thead>
           <tbody className="divide-y divide-gray-100">
             {deals.map(d => {
-              const v = values[d.id] || { kpi: '', direct: '', purchase: '' }
+              const v = values[d.id] || { kpi: '', direct: '', purchase: '', external: '' }
               const kpiNum = parseFloat(v.kpi || '0')
               const earned = kpiNum * d.ratio
+              const isExSelected = exDealId === d.id
               return (
-                <tr key={d.id} className="hover:bg-gray-50">
+                <tr key={d.id} className={`hover:bg-gray-50 ${isExSelected ? 'bg-orange-50' : ''}`}>
                   <td className="px-4 py-2">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                       d.employee?.affiliation?.code === 'TC' ? 'bg-blue-100 text-blue-700' :
@@ -175,13 +278,26 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
                     />
                   </td>
                   <td className="px-4 py-2">
-                    <input
-                      type="number"
-                      value={v.external}
-                      onChange={e => handleChange(d.id, 'external', e.target.value)}
-                      className="w-20 text-right border border-orange-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
-                      placeholder="0"
-                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={v.external}
+                        onChange={e => handleChange(d.id, 'external', e.target.value)}
+                        className={`w-20 text-right border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 ${
+                          isExSelected ? 'border-orange-400 bg-orange-50 focus:ring-orange-400' : 'border-orange-200 focus:ring-orange-400'
+                        }`}
+                        placeholder="0"
+                      />
+                      <button
+                        onClick={() => { setExDealId(isExSelected ? '' : d.id); setExSaved(false) }}
+                        title="외부매입 상세 입력"
+                        className={`text-xs px-1.5 py-1 rounded border transition-colors ${
+                          isExSelected ? 'bg-orange-500 text-white border-orange-500' : 'border-orange-300 text-orange-500 hover:bg-orange-50'
+                        }`}
+                      >
+                        📋
+                      </button>
+                    </div>
                   </td>
                   <td className="px-4 py-2 text-right font-medium text-blue-600">
                     {v.kpi ? earned.toFixed(1) : '-'}
@@ -204,6 +320,79 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
         </button>
         {saved && <span className="text-emerald-600 text-sm">✓ 저장 완료</span>}
       </div>
+
+      {/* 외부매입 상세 입력 */}
+      {exDealId && (() => {
+        const exDeal = deals.find(d => d.id === exDealId)
+        const exTotal = exItems.reduce((s, i) => s + parseFloat(i.amount || '0'), 0)
+        return (
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-orange-800">
+                  📋 외부매입 상세 입력 — {exDeal?.employee?.name} · {selectedMonth}월
+                </h3>
+                <p className="text-xs text-orange-600 mt-0.5">항목 저장 시 위 테이블 외부매입 값에 자동 반영됩니다.</p>
+              </div>
+              <button onClick={() => setExDealId('')} className="text-orange-400 hover:text-orange-600 text-sm">닫기 ✕</button>
+            </div>
+
+            {exItems.length > 0 ? (
+              <div className="space-y-1.5">
+                {exItems.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 text-sm border border-orange-100">
+                    <span className="flex-1 text-gray-700">{item.desc}</span>
+                    <span className="font-medium text-orange-600 w-24 text-right">
+                      {parseFloat(item.amount || '0').toLocaleString('ko-KR', { minimumFractionDigits: 1 })} 백만
+                    </span>
+                    <button onClick={() => handleRemoveItem(idx)} className="text-gray-300 hover:text-red-400 text-xs">✕</button>
+                  </div>
+                ))}
+                <div className="flex justify-between px-3 pt-1 text-sm font-semibold text-orange-700 border-t border-orange-200">
+                  <span>합계</span>
+                  <span>{exTotal.toLocaleString('ko-KR', { minimumFractionDigits: 1 })} 백만원</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-orange-400 text-center py-2">입력된 항목이 없습니다</p>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newDesc}
+                onChange={e => setNewDesc(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddItem() }}
+                placeholder="거래처 / 항목명"
+                className="flex-1 border border-orange-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+              />
+              <input
+                type="number"
+                value={newAmount}
+                onChange={e => setNewAmount(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddItem() }}
+                placeholder="금액 (백만)"
+                className="w-28 text-right border border-orange-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+              />
+              <button
+                onClick={handleAddItem}
+                className="bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors whitespace-nowrap"
+              >+ 추가</button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleExSave}
+                disabled={exSaving}
+                className="bg-orange-500 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors disabled:opacity-50"
+              >
+                {exSaving ? '저장 중...' : '외부매입 상세 저장'}
+              </button>
+              {exSaved && <span className="text-emerald-600 text-sm">✓ 저장 완료 (테이블에 반영됨)</span>}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 매입비 정산 */}
       <div className="bg-orange-50 border border-orange-200 rounded-xl p-5">
