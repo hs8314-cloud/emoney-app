@@ -101,6 +101,7 @@ export default async function DashboardPage() {
             <Link href="/admin" className="text-sm bg-gray-800 text-white px-3 py-1 rounded-lg hover:bg-gray-700">관리자 홈</Link>
           )}
           <Link href="/proposals" className="text-sm text-gray-500 hover:text-gray-700">성과거래</Link>
+          <Link href="/kpi" className="text-sm text-blue-600 hover:text-blue-800 font-medium">KPI 입력</Link>
           <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700">설정</Link>
           <LogoutButton />
         </div>
