@@ -27,24 +27,8 @@ export async function GET(req: Request) {
   const { data: allEmps } = await supabase.from('employees').select('id, name')
   const empMap = Object.fromEntries((allEmps || []).map((e: any) => [e.id, e.name]))
 
-  // 2. 판매자 거래 → 매입자에게 지급 내역 (단순 표시)
-  if (deal.partner_id) {
-    const { data: kpi } = await supabase
-      .from('monthly_kpi')
-      .select('purchase_cost')
-      .eq('performance_deal_id', dealId)
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle()
-
-    return NextResponse.json({
-      type: 'seller',
-      partnerName: empMap[deal.partner_id] ?? '알 수 없음',
-      amount: kpi?.purchase_cost ?? 0,
-    })
-  }
-
-  // 3. 매입자 거래 → 어떤 판매자들이 얼마 기여했는지 역계산
+  // purchase_cost는 항상 "이 사람에게 기여한 하위 판매자들의 합산"
+  // partner_id 유무와 무관하게 동일 로직: 이 employee를 partner로 하는 deals 찾기
   const { data: sellerDeals } = await supabase
     .from('performance_deals')
     .select('id, ratio, employee_id')
