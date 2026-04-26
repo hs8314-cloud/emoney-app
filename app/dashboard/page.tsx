@@ -32,7 +32,7 @@ export default async function DashboardPage() {
   // 내 성과거래 ID 목록 먼저 조회 (중단된 거래도 포함 - 누적 데이터 표시 위해)
   const { data: myDeals } = await supabase
     .from('performance_deals')
-    .select('id, title, calc_logic, ratio, is_active')
+    .select('id, title, calc_logic, ratio, is_active, direct_note')
     .eq('employee_id', employee.id)
 
   const myDealIds = (myDeals || []).map((d: any) => d.id)
@@ -66,7 +66,8 @@ export default async function DashboardPage() {
     const remaining = earned - spent
     const multiplier = employee.salary * 2 > 0 ? remaining / (employee.salary * 2) : 0
     return { month: r.month, earned, spent, remaining, multiplier, salary: employee.salary,
-      kpi: r.kpi_value, ratio: deal.ratio, direct, purchase, external }
+      kpi: r.kpi_value, ratio: deal.ratio, direct, purchase, external,
+      direct_note: deal.direct_note ?? null }
   })
 
   // 누적 계산
@@ -153,7 +154,7 @@ export default async function DashboardPage() {
                   {currentMonth && currentMonth.spent > 0 && (
                     <p className="text-xs text-gray-300 mt-0.5">
                       {[
-                        currentMonth.direct > 0 ? `직접비 ${fmt(currentMonth.direct)}` : null,
+                        currentMonth.direct > 0 ? `직접비${currentMonth.direct_note ? `(${currentMonth.direct_note})` : ''} ${fmt(currentMonth.direct)}` : null,
                         currentMonth.purchase > 0 ? `내부매입 ${fmt(currentMonth.purchase)}` : null,
                         currentMonth.external > 0 ? `외부매입 ${fmt(currentMonth.external)}` : null,
                       ].filter(Boolean).join(' · ')}
@@ -237,7 +238,14 @@ export default async function DashboardPage() {
                     <span className="text-blue-600 font-medium">{fmt(m.earned)}</span>
                     <p className="text-xs text-gray-300">KPI {fmt(m.kpi)} × {(m.ratio * 100).toFixed(0)}%</p>
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-400">{m.direct > 0 ? fmt(m.direct) : '-'}</td>
+                  <td className="px-4 py-3 text-right text-gray-400">
+                    {m.direct > 0 ? (
+                      <>
+                        <span>{fmt(m.direct)}</span>
+                        {m.direct_note && <p className="text-xs text-gray-300">{m.direct_note}</p>}
+                      </>
+                    ) : '-'}
+                  </td>
                   <td className="px-4 py-3 text-right text-gray-400">{m.purchase > 0 ? fmt(m.purchase) : '-'}</td>
                   <td className="px-4 py-3 text-right text-red-400">{fmt(m.spent)}</td>
                   <td className={`px-4 py-3 text-right font-bold ${m.remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>

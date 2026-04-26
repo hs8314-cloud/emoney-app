@@ -13,6 +13,7 @@ type Deal = {
   title: string
   calc_logic: string
   ratio: number
+  direct_note?: string | null
 }
 
 type ExistingKpi = {
@@ -137,7 +138,9 @@ export default function KpiSelfForm({
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  직접비 <span className="text-gray-400">(선택)</span>
+                  직접비 {deal.direct_note
+                    ? <span className="text-orange-500">= {deal.direct_note}</span>
+                    : <span className="text-gray-400">(선택)</span>}
                 </label>
                 <input
                   type="number"
