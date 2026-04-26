@@ -80,6 +80,17 @@ export default function KpiSelfForm({
 
   return (
     <div className="space-y-5">
+      {/* 입력 안내 */}
+      <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-700 space-y-1">
+        <p className="font-semibold">📌 KPI 입력 안내</p>
+        <ul className="text-xs text-blue-600 space-y-0.5 mt-1">
+          <li>· <strong>KPI 값</strong>: 해당 월의 실적 금액 (단위: 백만원). 성과거래의 산출 로직에 따라 입력하세요.</li>
+          <li>· <strong>직접비</strong>: KPI 달성을 위해 직접 지출한 비용 (없으면 0 또는 빈칸)</li>
+          <li>· 입력하면 아래에 <strong>번돈 · 남는돈 · 배수</strong>가 즉시 미리보기됩니다.</li>
+          <li>· 저장 후 관리자가 매입비를 반영하면 최종 E머니가 확정됩니다.</li>
+        </ul>
+      </div>
+
       {/* 월 선택 */}
       <div className="flex gap-2 flex-wrap">
         {MONTHS.map(m => (
@@ -168,7 +179,7 @@ export default function KpiSelfForm({
           className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50">
           {saving ? '저장 중...' : `${selectedMonth}월 KPI 저장`}
         </button>
-        {saved && <span className="text-emerald-600 text-sm font-medium">✓ 저장 완료</span>}
+        {saved && <span className="text-emerald-600 text-sm font-medium">✓ 저장 완료 — 관리자 검토 후 최종 반영됩니다</span>}
       </div>
     </div>
   )
