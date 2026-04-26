@@ -79,10 +79,13 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
   // 월별 계산
   const monthly = kpiRows.map(r => {
     const earned = r.kpi_value * deal.ratio
-    const spent = r.direct_cost + r.purchase_cost + (r.external_purchase_cost ?? 0)
+    const direct = r.direct_cost
+    const purchase = r.purchase_cost
+    const external = r.external_purchase_cost ?? 0
+    const spent = direct + purchase + external
     const remaining = earned - spent
     const multiplier = salary * 2 > 0 ? remaining / (salary * 2) : 0
-    return { month: r.month, kpiValue: r.kpi_value, earned, spent, remaining, multiplier }
+    return { month: r.month, kpiValue: r.kpi_value, earned, spent, remaining, multiplier, direct, purchase, external }
   })
   const cumEarned = monthly.reduce((s, m) => s + m.earned, 0)
   const cumSpent = monthly.reduce((s, m) => s + m.spent, 0)
@@ -198,6 +201,8 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
                     <th className="py-1.5 text-left">월</th>
                     <th className="py-1.5 text-right">KPI 값</th>
                     <th className="py-1.5 text-right">번돈</th>
+                    <th className="py-1.5 text-right">직접비</th>
+                    <th className="py-1.5 text-right">내부매입</th>
                     <th className="py-1.5 text-right">쓴돈</th>
                     <th className="py-1.5 text-right font-semibold text-gray-600">남는돈</th>
                     <th className="py-1.5 text-right">배수</th>
@@ -209,6 +214,15 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
                       <td className="py-2 text-gray-600 font-medium">{m.month}월</td>
                       <td className="py-2 text-right text-gray-500">{fmt(m.kpiValue)}</td>
                       <td className="py-2 text-right text-blue-600">{fmt(m.earned)}</td>
+                      <td className="py-2 text-right text-gray-400">
+                        {m.direct > 0 ? (
+                          <>
+                            <span>{fmt(m.direct)}</span>
+                            {deal.direct_note && <p className="text-xs text-gray-300">{deal.direct_note}</p>}
+                          </>
+                        ) : '-'}
+                      </td>
+                      <td className="py-2 text-right text-gray-400">{m.purchase > 0 ? fmt(m.purchase) : '-'}</td>
                       <td className="py-2 text-right text-red-400">{fmt(m.spent)}</td>
                       <td className={`py-2 text-right font-bold ${m.remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {fmt(m.remaining)}
@@ -224,6 +238,8 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
                     <td className="pt-2 text-gray-700">누적</td>
                     <td></td>
                     <td className="pt-2 text-right text-blue-600">{fmt(cumEarned)}</td>
+                    <td className="pt-2 text-right text-gray-400">{fmt(monthly.reduce((s,m)=>s+m.direct,0))}</td>
+                    <td className="pt-2 text-right text-gray-400">{fmt(monthly.reduce((s,m)=>s+m.purchase,0))}</td>
                     <td className="pt-2 text-right text-red-400">{fmt(cumSpent)}</td>
                     <td className={`pt-2 text-right font-bold ${cumRemaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {fmt(cumRemaining)}
