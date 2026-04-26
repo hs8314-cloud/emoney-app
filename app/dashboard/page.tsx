@@ -55,24 +55,34 @@ export default async function DashboardPage() {
     performance_deal: { ...dealMap[r.performance_deal_id], employee_id: employee.id },
   }))
 
-  // 월별 계산
+  // 월별 계산 (쓴돈 구성요소 포함)
   const monthly = rows.map((r: any) => {
     const deal = r.performance_deal
     const earned = r.kpi_value * deal.ratio
-    const spent = r.direct_cost + r.purchase_cost + (r.external_purchase_cost ?? 0)
+    const direct = r.direct_cost
+    const purchase = r.purchase_cost
+    const external = r.external_purchase_cost ?? 0
+    const spent = direct + purchase + external
     const remaining = earned - spent
     const multiplier = employee.salary * 2 > 0 ? remaining / (employee.salary * 2) : 0
-    return { month: r.month, earned, spent, remaining, multiplier, salary: employee.salary }
+    return { month: r.month, earned, spent, remaining, multiplier, salary: employee.salary,
+      kpi: r.kpi_value, ratio: deal.ratio, direct, purchase, external }
   })
 
-  // 누적 계산 (배수 = 누적 남는돈 ÷ (급여 × 2 × 개월수))
+  // 누적 계산
   const cumEarned = monthly.reduce((s, m) => s + m.earned, 0)
   const cumSpent = monthly.reduce((s, m) => s + m.spent, 0)
   const cumRemaining = cumEarned - cumSpent
+  const cumDirect = monthly.reduce((s, m) => s + m.direct, 0)
+  const cumPurchase = monthly.reduce((s, m) => s + m.purchase, 0)
+  const cumExternal = monthly.reduce((s, m) => s + m.external, 0)
   const monthCount = monthly.length
   const cumMultiplier = employee.salary * 2 * monthCount > 0 ? cumRemaining / (employee.salary * 2 * monthCount) : 0
 
-  const currentMonth = monthly[monthly.length - 1]
+  // 당월: 실제 현재 월 기준 (데이터 없으면 가장 최근 월)
+  const actualMonth = new Date().getMonth() + 1
+  const currentMonth = monthly.find(m => m.month === actualMonth) ?? monthly[monthly.length - 1]
+  const currentMonthLabel = currentMonth?.month === actualMonth ? `${actualMonth}월` : `최근 (${currentMonth?.month}월)`
 
   // 성과거래 정보 (활성 우선, 없으면 중단된 거래 표시)
   const { data: deal } = await supabase
@@ -128,14 +138,28 @@ export default async function DashboardPage() {
         {/* 당월 / 누적 요약 */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-xl p-5 shadow-sm border">
-            <p className="text-xs text-gray-400 mb-3">당월 ({currentMonth?.month}월)</p>
+            <p className="text-xs text-gray-400 mb-3">당월 ({currentMonthLabel})</p>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">번돈</span>
+                <div>
+                  <span className="text-gray-500">번돈</span>
+                  {currentMonth && <p className="text-xs text-gray-300 mt-0.5">KPI {fmt(currentMonth.kpi)} × {(currentMonth.ratio * 100).toFixed(0)}%</p>}
+                </div>
                 <span className="font-medium text-blue-600">{fmt(currentMonth?.earned ?? 0)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">쓴돈</span>
+                <div>
+                  <span className="text-gray-500">쓴돈</span>
+                  {currentMonth && currentMonth.spent > 0 && (
+                    <p className="text-xs text-gray-300 mt-0.5">
+                      {[
+                        currentMonth.direct > 0 ? `직접비 ${fmt(currentMonth.direct)}` : null,
+                        currentMonth.purchase > 0 ? `내부매입 ${fmt(currentMonth.purchase)}` : null,
+                        currentMonth.external > 0 ? `외부매입 ${fmt(currentMonth.external)}` : null,
+                      ].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
+                </div>
                 <span className="font-medium text-red-400">{fmt(currentMonth?.spent ?? 0)}</span>
               </div>
               <div className="border-t pt-2 flex justify-between">
@@ -145,21 +169,32 @@ export default async function DashboardPage() {
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">배수</span>
+                <span className="text-gray-400" title="남는돈 ÷ 급여×2 · 숫자가 클수록 효율적">배수 ⓘ</span>
                 <span className="font-medium text-gray-700">{fmt(currentMonth?.multiplier ?? 0)}x</span>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-xl p-5 shadow-sm border">
-            <p className="text-xs text-gray-400 mb-3">누적 (2026년)</p>
+            <p className="text-xs text-gray-400 mb-3">누적 (2026년 · {monthCount}개월)</p>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">번돈</span>
                 <span className="font-medium text-blue-600">{fmt(cumEarned)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">쓴돈</span>
+                <div>
+                  <span className="text-gray-500">쓴돈</span>
+                  {cumSpent > 0 && (
+                    <p className="text-xs text-gray-300 mt-0.5">
+                      {[
+                        cumDirect > 0 ? `직접비 ${fmt(cumDirect)}` : null,
+                        cumPurchase > 0 ? `내부매입 ${fmt(cumPurchase)}` : null,
+                        cumExternal > 0 ? `외부매입 ${fmt(cumExternal)}` : null,
+                      ].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
+                </div>
                 <span className="font-medium text-red-400">{fmt(cumSpent)}</span>
               </div>
               <div className="border-t pt-2 flex justify-between">
@@ -169,7 +204,7 @@ export default async function DashboardPage() {
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">배수</span>
+                <span className="text-gray-400" title="남는돈 ÷ 급여×2×개월수 · 숫자가 클수록 효율적">배수 ⓘ</span>
                 <span className="font-medium text-gray-700">{fmt(cumMultiplier)}x</span>
               </div>
             </div>
@@ -177,7 +212,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* 월별 상세 테이블 */}
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
           <div className="px-5 py-4 border-b">
             <h2 className="font-semibold text-gray-800">월별 상세 내역</h2>
             <p className="text-xs text-gray-400 mt-0.5">단위: 백만원</p>
@@ -185,25 +220,30 @@ export default async function DashboardPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500">
               <tr>
-                <th className="px-5 py-3 text-left">월</th>
-                <th className="px-5 py-3 text-right">번돈</th>
-                <th className="px-5 py-3 text-right">쓴돈</th>
-                <th className="px-5 py-3 text-right">급여</th>
-                <th className="px-5 py-3 text-right font-semibold">남는돈</th>
-                <th className="px-5 py-3 text-right">배수</th>
+                <th className="px-4 py-3 text-left">월</th>
+                <th className="px-4 py-3 text-right">번돈</th>
+                <th className="px-4 py-3 text-right text-gray-400">직접비</th>
+                <th className="px-4 py-3 text-right text-gray-400">내부매입</th>
+                <th className="px-4 py-3 text-right text-red-400">쓴돈</th>
+                <th className="px-4 py-3 text-right font-semibold">남는돈</th>
+                <th className="px-4 py-3 text-right" title="남는돈 ÷ 급여×2">배수 ⓘ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {monthly.map(m => (
                 <tr key={m.month} className="hover:bg-gray-50">
-                  <td className="px-5 py-3 font-medium text-gray-700">{m.month}월</td>
-                  <td className="px-5 py-3 text-right text-blue-600">{fmt(m.earned)}</td>
-                  <td className="px-5 py-3 text-right text-red-400">{fmt(m.spent)}</td>
-                  <td className="px-5 py-3 text-right text-gray-400">{fmt(m.salary)}</td>
-                  <td className={`px-5 py-3 text-right font-bold ${m.remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  <td className="px-4 py-3 font-medium text-gray-700">{m.month}월</td>
+                  <td className="px-4 py-3 text-right">
+                    <span className="text-blue-600 font-medium">{fmt(m.earned)}</span>
+                    <p className="text-xs text-gray-300">KPI {fmt(m.kpi)} × {(m.ratio * 100).toFixed(0)}%</p>
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-400">{m.direct > 0 ? fmt(m.direct) : '-'}</td>
+                  <td className="px-4 py-3 text-right text-gray-400">{m.purchase > 0 ? fmt(m.purchase) : '-'}</td>
+                  <td className="px-4 py-3 text-right text-red-400">{fmt(m.spent)}</td>
+                  <td className={`px-4 py-3 text-right font-bold ${m.remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                     {fmt(m.remaining)}
                   </td>
-                  <td className={`px-5 py-3 text-right ${m.multiplier >= 1 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                  <td className={`px-4 py-3 text-right ${m.multiplier >= 1 ? 'text-emerald-600' : 'text-gray-400'}`}>
                     {fmt(m.multiplier)}x
                   </td>
                 </tr>
