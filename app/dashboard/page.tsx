@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import LogoutButton from '@/components/LogoutButton'
 import NoticeBanner from '@/components/NoticeBanner'
+import ActiveDealCard from '@/components/ActiveDealCard'
 import Link from 'next/link'
 
 function fmt(n: number) {
@@ -86,14 +87,13 @@ export default async function DashboardPage() {
   const currentMonth = monthly.find(m => m.month === actualMonth) ?? monthly[monthly.length - 1]
   const currentMonthLabel = currentMonth?.month === actualMonth ? `${actualMonth}월` : `최근 (${currentMonth?.month}월)`
 
-  // 성과거래 정보 (활성 우선, 없으면 중단된 거래 표시)
-  const { data: deal } = await supabase
+  // 성과거래 전체 (파트너 정보 포함, ActiveDealCard용)
+  const { data: myDealsWithPartner } = await supabase
     .from('performance_deals')
-    .select('*')
+    .select('*, partner:employees!performance_deals_partner_id_fkey(id, name, email, affiliation:affiliations(code))')
     .eq('employee_id', employee.id)
     .order('is_active', { ascending: false })
-    .limit(1)
-    .single()
+    .order('created_at', { ascending: false })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -121,20 +121,13 @@ export default async function DashboardPage() {
       <NoticeBanner />
 
       <main className="max-w-3xl mx-auto p-6 space-y-6">
-        {/* 성과거래 카드 */}
-        {deal && (
-          <div className={`bg-white rounded-xl p-5 shadow-sm border ${!deal.is_active ? 'opacity-70' : ''}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <p className="text-xs text-gray-400">나의 성과거래</p>
-              {!deal.is_active && (
-                <span className="text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded font-medium">거래중단</span>
-              )}
-            </div>
-            <p className="font-semibold text-gray-800">{deal.title}</p>
-            <p className="text-sm text-gray-500 mt-1">
-              산출 로직: <span className="text-blue-600">{deal.calc_logic}</span>
-              &nbsp;·&nbsp;비율: <span className="text-blue-600">{(deal.ratio * 100).toFixed(0)}%</span>
-            </p>
+        {/* 성과거래 카드 — ActiveDealCard (내용조회 포함) */}
+        {(myDealsWithPartner && myDealsWithPartner.length > 0) && (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">나의 성과거래</p>
+            {myDealsWithPartner.map((d: any) => (
+              <ActiveDealCard key={d.id} deal={d} salary={employee.salary} />
+            ))}
           </div>
         )}
 
