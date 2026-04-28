@@ -19,9 +19,13 @@ export default async function AdminPage() {
 
   if (me?.role !== 'admin') redirect('/dashboard')
 
-  // 각 테이블 개별 조회 후 JS에서 합산 (중첩 join 버그 우회)
-  const [{ data: allDeals }, { data: allEmps }, { data: affiliations }, { data: kpiAll }] = await Promise.all([
+  // FULL_EARNED: 번돈 전액을 매입자에게 기여
+  const FULL_EARNED = new Set(['임홍진', '김재훈'])
+
+  // 각 테이블 개별 조회 후 JS에서 합산
+  const [{ data: allDeals }, { data: allDealsAll }, { data: allEmps }, { data: affiliations }, { data: kpiAll }] = await Promise.all([
     supabase.from('performance_deals').select('id, title, calc_logic, ratio, employee_id').eq('is_active', true),
+    supabase.from('performance_deals').select('id, ratio, employee_id, partner_id, start_month, end_month'),
     supabase.from('employees').select('id, name, salary, affiliation_id'),
     supabase.from('affiliations').select('id, code'),
     supabase.from('monthly_kpi').select('*').eq('year', 2026).in('month', MONTHS),
@@ -32,7 +36,35 @@ export default async function AdminPage() {
   const dealMap = Object.fromEntries((allDeals || []).map((d: any) => [d.id, d]))
   const activeDealIds = new Set((allDeals || []).map((d: any) => d.id))
 
-  // 직원별로 그룹핑
+  // KPI를 deal+month로 인덱싱
+  const kpiByDealMonth: Record<string, Record<number, any>> = {}
+  for (const row of (kpiAll || [])) {
+    if (!kpiByDealMonth[row.performance_deal_id]) kpiByDealMonth[row.performance_deal_id] = {}
+    kpiByDealMonth[row.performance_deal_id][row.month] = row
+  }
+
+  // 동적 purchase_cost 계산: buyer empId -> month -> amount
+  // (저장된 값 대신 현재 seller 구조에서 실시간 계산 → 항상 breakdown 합계와 일치)
+  const dynamicPurchase: Record<string, Record<number, number>> = {}
+  for (const deal of (allDealsAll || [])) {
+    if (!deal.partner_id) continue
+    const sm = deal.start_month ?? 1
+    const em = deal.end_month ?? 12
+    const sellerName = empMap[deal.employee_id]?.name ?? ''
+    const isFullEarned = FULL_EARNED.has(sellerName)
+    for (const m of MONTHS) {
+      if (m < sm || m > em) continue
+      const kpi = kpiByDealMonth[deal.id]?.[m]
+      if (!kpi) continue
+      const earned = kpi.kpi_value * deal.ratio
+      const storedSpent = kpi.direct_cost + kpi.purchase_cost + (kpi.external_purchase_cost ?? 0)
+      const contribution = isFullEarned ? earned : earned - storedSpent
+      if (!dynamicPurchase[deal.partner_id]) dynamicPurchase[deal.partner_id] = {}
+      dynamicPurchase[deal.partner_id][m] = (dynamicPurchase[deal.partner_id][m] ?? 0) + contribution
+    }
+  }
+
+  // 직원별로 그룹핑 (복수 거래 합산, 동적 purchase_cost 사용)
   const employeeMap: Record<string, any> = {}
   for (const row of (kpiAll || [])) {
     if (!activeDealIds.has(row.performance_deal_id)) continue
@@ -43,10 +75,31 @@ export default async function AdminPage() {
       employeeMap[emp.id] = { name: emp.name, affiliation: emp.affCode, salary: emp.salary, months: {} }
     }
     const earned = row.kpi_value * deal.ratio
-    const spent = row.direct_cost + row.purchase_cost + (row.external_purchase_cost ?? 0)
+    const purchase = dynamicPurchase[emp.id]?.[row.month] ?? 0
+    const spent = row.direct_cost + purchase + (row.external_purchase_cost ?? 0)
     const remaining = earned - spent
     const multiplier = emp.salary * 2 > 0 ? remaining / (emp.salary * 2) : 0
-    employeeMap[emp.id].months[row.month] = { earned, spent, remaining, multiplier }
+    // 복수 거래 합산
+    if (employeeMap[emp.id].months[row.month]) {
+      const prev = employeeMap[emp.id].months[row.month]
+      employeeMap[emp.id].months[row.month] = {
+        earned: prev.earned + earned,
+        spent: purchase + row.direct_cost + (row.external_purchase_cost ?? 0),
+        remaining: prev.remaining + earned - (row.direct_cost + (row.external_purchase_cost ?? 0)),
+        multiplier: 0, // 아래서 재계산
+      }
+    } else {
+      employeeMap[emp.id].months[row.month] = { earned, spent, remaining, multiplier }
+    }
+  }
+  // multiplier 재계산 (복수 거래 합산 후)
+  for (const emp of Object.values(employeeMap) as any[]) {
+    for (const m of MONTHS) {
+      if (!emp.months[m]) continue
+      const { earned, spent } = emp.months[m]
+      emp.months[m].remaining = earned - spent
+      emp.months[m].multiplier = emp.salary * 2 > 0 ? (earned - spent) / (emp.salary * 2) : 0
+    }
   }
 
   const employees = Object.values(employeeMap)
