@@ -322,6 +322,9 @@ export default function AdminTabs({
                     <p className="font-medium text-gray-900">{deal.title}</p>
                     <p className="text-sm text-gray-500 mt-0.5">
                       {deal.calc_logic} · <span className="text-blue-600 font-medium">{(deal.ratio * 100).toFixed(0)}%</span>
+                      <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
+                        {deal.start_month ?? 1}월~{deal.end_month ?? 12}월
+                      </span>
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2 ml-4 flex-shrink-0">
