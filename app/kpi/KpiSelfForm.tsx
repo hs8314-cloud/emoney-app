@@ -15,6 +15,8 @@ type Deal = {
   calc_logic: string
   ratio: number
   direct_note?: string | null
+  start_month?: number | null
+  end_month?: number | null
 }
 
 type ExistingKpi = {
@@ -37,6 +39,11 @@ export default function KpiSelfForm({
 }) {
   const currentMonth = new Date().getMonth() + 1
   const [selectedMonth, setSelectedMonth] = useState(currentMonth)
+
+  // 해당 월에 하나라도 유효한 거래가 있으면 활성
+  function isMonthValid(m: number) {
+    return deals.some(d => m >= (d.start_month ?? 1) && m <= (d.end_month ?? 12))
+  }
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [file, setFile] = useState<File | null>(null)
@@ -127,18 +134,24 @@ export default function KpiSelfForm({
 
       {/* 월 선택 */}
       <div className="flex gap-2 flex-wrap">
-        {MONTHS.map(m => (
-          <button key={m} onClick={() => handleMonthChange(m)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              selectedMonth === m ? 'bg-blue-600 text-white' : 'bg-white border text-gray-600 hover:border-blue-400'
-            }`}>
-            {m}월
-          </button>
-        ))}
+        {MONTHS.map(m => {
+          const valid = isMonthValid(m)
+          return (
+            <button key={m} onClick={() => valid && handleMonthChange(m)}
+              disabled={!valid}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                !valid ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                : selectedMonth === m ? 'bg-blue-600 text-white'
+                : 'bg-white border text-gray-600 hover:border-blue-400'
+              }`}>
+              {m}월
+            </button>
+          )
+        })}
       </div>
 
       {/* 거래별 입력 카드 */}
-      {deals.map(deal => {
+      {deals.filter(deal => selectedMonth >= (deal.start_month ?? 1) && selectedMonth <= (deal.end_month ?? 12)).map(deal => {
         const v = values[deal.id] || { kpi: '', direct: '' }
         const kpiNum = parseFloat(v.kpi || '0') || 0
         const directNum = parseFloat(v.direct || '0') || 0

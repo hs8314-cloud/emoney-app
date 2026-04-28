@@ -12,6 +12,8 @@ export default function ProposalForm({ employees, proposerId, onSent }: { employ
   const [calcLogic, setCalcLogic] = useState('')
   const [ratio, setRatio] = useState('')
   const [description, setDescription] = useState('')
+  const [startMonth, setStartMonth] = useState('1')
+  const [endMonth, setEndMonth] = useState('12')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
 
@@ -28,13 +30,15 @@ export default function ProposalForm({ employees, proposerId, onSent }: { employ
         calc_logic: calcLogic,
         ratio: parseFloat(ratio) / 100,
         description: description || null,
+        start_month: parseInt(startMonth),
+        end_month: parseInt(endMonth),
       }),
     })
     const data = await res.json()
     setLoading(false)
     if (res.ok) {
       setSent(true)
-      setReceiverId(''); setTitle(''); setCalcLogic(''); setRatio(''); setDescription('')
+      setReceiverId(''); setTitle(''); setCalcLogic(''); setRatio(''); setDescription(''); setStartMonth('1'); setEndMonth('12')
       setTimeout(() => { setSent(false); router.refresh(); onSent?.() }, 1500)
     } else {
       alert('전송 실패: ' + data.error)
@@ -93,6 +97,22 @@ export default function ProposalForm({ employees, proposerId, onSent }: { employ
             min="0" max="100" step="0.1"
             required
           />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">거래 시작월</label>
+          <select value={startMonth} onChange={e => setStartMonth(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <option key={m} value={m}>{m}월</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">거래 종료월</label>
+          <select value={endMonth} onChange={e => setEndMonth(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <option key={m} value={m}>{m}월</option>)}
+          </select>
         </div>
       </div>
       <div>

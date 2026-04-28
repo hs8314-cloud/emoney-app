@@ -46,6 +46,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           title: proposal.title,
           calc_logic: proposal.calc_logic,
           ratio: proposal.ratio,
+          start_month: proposal.start_month ?? 1,
+          end_month: proposal.end_month ?? 12,
         })
         .eq('id', proposal.related_deal_id)
 
@@ -61,6 +63,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           calc_logic: proposal.calc_logic,
           ratio: proposal.ratio,
           is_active: true,
+          start_month: proposal.start_month ?? 1,
+          end_month: proposal.end_month ?? 12,
         })
       if (dealError) return NextResponse.json({ error: '성과거래 등록 실패: ' + dealError.message }, { status: 500 })
     }

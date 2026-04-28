@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { receiver_id, title, calc_logic, ratio, description, proposal_type, related_deal_id } = body
+  const { receiver_id, title, calc_logic, ratio, description, proposal_type, related_deal_id, start_month, end_month } = body
 
   // 제안자 정보
   const { data: proposer } = await supabase
@@ -33,6 +33,8 @@ export async function POST(req: NextRequest) {
     status: 'pending',
     proposal_type: proposal_type || 'new',
     related_deal_id: related_deal_id || null,
+    start_month: start_month ?? 1,
+    end_month: end_month ?? 12,
   })
 
   if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })

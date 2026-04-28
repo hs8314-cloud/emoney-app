@@ -19,7 +19,7 @@ export default async function ProposalsPage() {
   // 1. 본인의 모든 거래 (활성 + 중단 포함) - partner 정보 포함
   const { data: activeDeals } = await supabase
     .from('performance_deals')
-    .select('*, partner:employees!performance_deals_partner_id_fkey(id, name, email, affiliation:affiliations(code))')
+    .select('*, start_month, end_month, partner:employees!performance_deals_partner_id_fkey(id, name, email, affiliation:affiliations(code))')
     .eq('employee_id', me.id)
     .order('is_active', { ascending: false })
     .order('created_at', { ascending: false })

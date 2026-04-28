@@ -13,6 +13,8 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
   const [title, setTitle] = useState(deal.title)
   const [calcLogic, setCalcLogic] = useState(deal.calc_logic)
   const [ratio, setRatio] = useState(String(Math.round(deal.ratio * 100)))
+  const [startMonth, setStartMonth] = useState(String(deal.start_month ?? 1))
+  const [endMonth, setEndMonth] = useState(String(deal.end_month ?? 12))
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -47,6 +49,8 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
     setTitle(deal.title)
     setCalcLogic(deal.calc_logic)
     setRatio(String(Math.round(deal.ratio * 100)))
+    setStartMonth(String(deal.start_month ?? 1))
+    setEndMonth(String(deal.end_month ?? 12))
   }
 
   async function handleSave() {
@@ -59,6 +63,8 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
         receiver_id: partner.id,
         title, calc_logic: calcLogic,
         ratio: parseFloat(ratio) / 100,
+        start_month: parseInt(startMonth),
+        end_month: parseInt(endMonth),
         proposal_type: 'modify',
         related_deal_id: deal.id,
       }),
@@ -120,6 +126,22 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">시작월</label>
+              <select value={startMonth} onChange={e => setStartMonth(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <option key={m} value={m}>{m}월</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">종료월</label>
+              <select value={endMonth} onChange={e => setEndMonth(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <option key={m} value={m}>{m}월</option>)}
+              </select>
+            </div>
+          </div>
           <div className="flex gap-2 pt-1">
             <button onClick={handleSave} disabled={saving}
               className="bg-amber-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors disabled:opacity-50">
@@ -162,6 +184,9 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
             <p className={`font-semibold ${isStopped ? 'text-gray-400' : 'text-gray-900'}`}>{title}</p>
             <p className="text-sm text-gray-500 mt-1">
               {calcLogic} · <span className={isStopped ? 'text-gray-400 font-medium' : 'text-blue-600 font-medium'}>{ratio}%</span>
+              <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
+                {deal.start_month ?? 1}월~{deal.end_month ?? 12}월
+              </span>
             </p>
           </div>
           <div className="flex gap-2 ml-4 flex-shrink-0">

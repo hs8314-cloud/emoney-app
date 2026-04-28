@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   // partner_id 유무와 무관하게 동일 로직: 이 employee를 partner로 하는 deals 찾기
   const { data: sellerDeals } = await supabase
     .from('performance_deals')
-    .select('id, ratio, employee_id')
+    .select('id, ratio, employee_id, start_month, end_month')
     .eq('partner_id', deal.employee_id)
     .eq('is_active', true)
 
@@ -51,6 +51,11 @@ export async function GET(req: Request) {
 
   const sellers = sellerDeals
     .map((d: any) => {
+      // 해당 월이 거래 유효 기간 밖이면 제외
+      const sm = d.start_month ?? 1
+      const em = d.end_month ?? 12
+      if (month < sm || month > em) return null
+
       const kpi = kpiMap[d.id]
       if (!kpi) return null
       const sellerName = empMap[d.employee_id] ?? '?'
