@@ -15,7 +15,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json().catch(() => ({}))
   const endMonth: number | undefined = body.endMonth
 
-  const updateData: Record<string, any> = { is_active: false }
+  // end_month만 설정 — is_active는 건드리지 않음 (거래 카드는 계속 표시)
+  const updateData: Record<string, any> = {}
   if (endMonth && endMonth >= 1 && endMonth <= 12) {
     updateData.end_month = endMonth
   }
