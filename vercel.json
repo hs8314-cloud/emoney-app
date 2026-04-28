@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/kpi-reminder",
+      "schedule": "0 0 15 * *"
+    },
+    {
+      "path": "/api/cron/results-share",
+      "schedule": "0 0 20 * *"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import LogoutButton from '@/components/LogoutButton'
+import NoticeBanner from '@/components/NoticeBanner'
 import Link from 'next/link'
 
 function fmt(n: number) {
@@ -117,6 +118,7 @@ export default async function DashboardPage() {
           <LogoutButton />
         </div>
       </header>
+      <NoticeBanner />
 
       <main className="max-w-3xl mx-auto p-6 space-y-6">
         {/* 성과거래 카드 */}
