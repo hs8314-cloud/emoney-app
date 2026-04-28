@@ -33,6 +33,9 @@ export default function AdminTabs({
   type TabKey = 'summary' | 'deals' | 'export'
   const [tab, setTab] = useState<TabKey>('summary')
   const [stoppingId, setStoppingId] = useState<string | null>(null)
+  // 중단처리: 월 선택 UI
+  const [stopSelectId, setStopSelectId] = useState<string | null>(null)
+  const [stopEndMonth, setStopEndMonth] = useState<number>(new Date().getMonth() + 1)
   const [dealDetail, setDealDetail] = useState<Record<string, { loading: boolean; rows: any[] }>>({})
   // 셀 조회 상세: key = `${dealId}-${month}-${field}`
   const [openCell, setOpenCell] = useState<string | null>(null)
@@ -92,11 +95,14 @@ export default function AdminTabs({
     setDealDetail(prev => ({ ...prev, [dealId]: { loading: false, rows } }))
   }
 
-  async function handleStop(deal: any) {
-    const empName = deal.employee?.name ?? '해당 직원'
-    if (!confirm(`"${deal.title}" (${empName}) 거래를 중단하시겠습니까?\n\n지금까지 누적된 E머니는 직원에게 귀속되며, 이후 거래는 발생하지 않습니다.`)) return
-    setStoppingId(deal.id)
-    await fetch(`/api/admin/deals/${deal.id}/stop`, { method: 'PATCH' })
+  async function handleStopConfirm(dealId: string) {
+    setStoppingId(dealId)
+    setStopSelectId(null)
+    await fetch(`/api/admin/deals/${dealId}/stop`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endMonth: stopEndMonth }),
+    })
     setStoppingId(null)
     router.refresh()
   }
@@ -336,13 +342,40 @@ export default function AdminTabs({
                       >
                         {dealDetail[deal.id]?.rows.length > 0 ? '닫기' : '거래내용조회'}
                       </button>
-                      <button
-                        onClick={() => handleStop(deal)}
-                        disabled={stoppingId === deal.id}
-                        className="text-xs border border-red-300 text-red-500 px-3 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
-                      >
-                        {stoppingId === deal.id ? '중단 중...' : '중단처리'}
-                      </button>
+                      {stopSelectId === deal.id ? (
+                        <div className="flex items-center gap-1">
+                          <select
+                            value={stopEndMonth}
+                            onChange={e => setStopEndMonth(Number(e.target.value))}
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-300"
+                          >
+                            {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                              <option key={m} value={m}>{m}월까지</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleStopConfirm(deal.id)}
+                            disabled={stoppingId === deal.id}
+                            className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition-colors disabled:opacity-50"
+                          >
+                            확인
+                          </button>
+                          <button
+                            onClick={() => setStopSelectId(null)}
+                            className="text-xs border border-gray-300 text-gray-500 px-2 py-1 rounded hover:bg-gray-50"
+                          >
+                            취소
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setStopSelectId(deal.id); setStopEndMonth(new Date().getMonth() + 1) }}
+                          disabled={stoppingId === deal.id}
+                          className="text-xs border border-red-300 text-red-500 px-3 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
+                        >
+                          {stoppingId === deal.id ? '중단 중...' : '중단처리'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -29,11 +29,11 @@ export async function GET(req: Request) {
 
   // purchase_cost는 항상 "이 사람에게 기여한 하위 판매자들의 합산"
   // partner_id 유무와 무관하게 동일 로직: 이 employee를 partner로 하는 deals 찾기
+  // is_active true/false 모두 포함 — 유효 기간은 아래 month 범위 체크로 처리
   const { data: sellerDeals } = await supabase
     .from('performance_deals')
     .select('id, ratio, employee_id, start_month, end_month')
     .eq('partner_id', deal.employee_id)
-    .eq('is_active', true)
 
   if (!sellerDeals?.length) {
     return NextResponse.json({ type: 'buyer', sellers: [], total: 0 })
