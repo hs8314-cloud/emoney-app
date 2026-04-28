@@ -62,6 +62,7 @@ export default async function KpiSelfPage() {
             deals={deals}
             existingKpi={existingKpi || []}
             salary={employee.salary}
+            employeeId={employee.id}
           />
         )}
       </main>

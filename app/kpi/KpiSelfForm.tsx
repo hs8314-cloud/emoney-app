@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { createSupabaseBrowser } from '@/lib/supabase-browser'
 
 const YEAR = 2026
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
@@ -27,15 +28,20 @@ export default function KpiSelfForm({
   deals,
   existingKpi,
   salary,
+  employeeId,
 }: {
   deals: Deal[]
   existingKpi: ExistingKpi[]
   salary: number
+  employeeId: string
 }) {
   const currentMonth = new Date().getMonth() + 1
   const [selectedMonth, setSelectedMonth] = useState(currentMonth)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [uploadError, setUploadError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const [values, setValues] = useState<Record<string, { kpi: string; direct: string }>>(() => {
     const init: Record<string, { kpi: string; direct: string }> = {}
@@ -55,11 +61,35 @@ export default function KpiSelfForm({
     })
     setValues(next)
     setSaved(false)
+    setFile(null)
+    setUploadError('')
+    if (fileRef.current) fileRef.current.value = ''
   }
 
   async function handleSave() {
+    if (!file) { setUploadError('근거자료 파일을 첨부해주세요.'); return }
+
     setSaving(true)
     setSaved(false)
+    setUploadError('')
+
+    // 1. 파일 Supabase Storage 업로드
+    const supabase = createSupabaseBrowser()
+    const ext = file.name.split('.').pop()
+    const path = `${YEAR}/${selectedMonth}/${employeeId}/${Date.now()}.${ext}`
+    const { error: uploadErr } = await supabase.storage
+      .from('kpi-attachments')
+      .upload(path, file, { upsert: true })
+
+    if (uploadErr) {
+      setUploadError('파일 업로드 실패: ' + uploadErr.message)
+      setSaving(false)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('kpi-attachments').getPublicUrl(path)
+
+    // 2. KPI 저장 + 이메일 발송
     for (const deal of deals) {
       const v = values[deal.id]
       if (!v?.kpi) continue
@@ -72,9 +102,12 @@ export default function KpiSelfForm({
           month: selectedMonth,
           kpiValue: parseFloat(v.kpi || '0'),
           directCost: parseFloat(v.direct || '0'),
+          attachmentUrl: publicUrl,
+          sendEmail: true,
         }),
       })
     }
+
     setSaving(false)
     setSaved(true)
   }
@@ -176,6 +209,33 @@ export default function KpiSelfForm({
           </div>
         )
       })}
+
+      {/* 근거자료 첨부 */}
+      <div className="bg-white rounded-xl border p-5 space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">📎 근거자료 첨부 <span className="text-red-500">*</span></p>
+          <p className="text-xs text-gray-400 mt-0.5">KPI 실적을 증빙하는 파일을 첨부해주세요 (필수)</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="cursor-pointer">
+            <span className="inline-block bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
+              파일 선택
+            </span>
+            <input
+              ref={fileRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.xlsx,.xls,.png,.jpg,.jpeg,.csv"
+              onChange={e => { setFile(e.target.files?.[0] || null); setUploadError(''); setSaved(false) }}
+            />
+          </label>
+          {file
+            ? <span className="text-sm text-gray-700 truncate max-w-xs">{file.name}</span>
+            : <span className="text-sm text-gray-400">선택된 파일 없음</span>
+          }
+        </div>
+        {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
+      </div>
 
       <div className="flex items-center gap-3 pt-1">
         <button onClick={handleSave} disabled={saving}
