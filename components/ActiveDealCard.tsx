@@ -23,11 +23,39 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
   const [kpiRows, setKpiRows] = useState<any[]>([])
   const [loadingKpi, setLoadingKpi] = useState(false)
 
+  // 셀 breakdown
+  const [openCell, setOpenCell] = useState<string | null>(null)
+  const [cellData, setCellData] = useState<Record<string, any>>({})
+  const [cellLoading, setCellLoading] = useState<string | null>(null)
+
   const partner = deal.partner
   const partnerAffCode = partner?.affiliation?.code ?? partner?.affiliation?.[0]?.code
   const affColor = partnerAffCode === 'TC' ? 'bg-blue-100 text-blue-700'
     : partnerAffCode === 'SAVI' ? 'bg-purple-100 text-purple-700'
     : 'bg-green-100 text-green-700'
+
+  async function handleCellClick(type: 'earned' | 'purchase', month: number, m: any) {
+    const key = `${month}-${type}`
+    if (openCell === key) { setOpenCell(null); return }
+    setOpenCell(key)
+
+    if (type === 'earned') {
+      // 로컬 계산
+      setCellData(prev => ({ ...prev, [key]: { kpiValue: m.kpiValue, ratio: deal.ratio, earned: m.earned } }))
+      return
+    }
+
+    // 내부매입: API 조회
+    if (m.purchase <= 0) {
+      setCellData(prev => ({ ...prev, [key]: { sellers: [], total: 0 } }))
+      return
+    }
+    setCellLoading(key)
+    const res = await fetch(`/api/admin/kpi/purchase-breakdown?dealId=${deal.id}&year=2026&month=${month}`)
+    const json = await res.json()
+    setCellData(prev => ({ ...prev, [key]: json }))
+    setCellLoading(null)
+  }
 
   async function handleToggleDetail() {
     if (showDetail) { setShowDetail(false); return }
@@ -233,30 +261,87 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
                     <th className="py-1.5 text-right">배수</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {monthly.map(m => (
-                    <tr key={m.month}>
-                      <td className="py-2 text-gray-600 font-medium">{m.month}월</td>
-                      <td className="py-2 text-right text-gray-500">{fmt(m.kpiValue)}</td>
-                      <td className="py-2 text-right text-blue-600">{fmt(m.earned)}</td>
-                      <td className="py-2 text-right text-gray-400">
-                        {m.direct > 0 ? (
-                          <>
-                            <span>{fmt(m.direct)}</span>
-                            {deal.direct_note && <p className="text-xs text-gray-300">{deal.direct_note}</p>}
-                          </>
-                        ) : '-'}
-                      </td>
-                      <td className="py-2 text-right text-gray-400">{m.purchase > 0 ? fmt(m.purchase) : '-'}</td>
-                      <td className="py-2 text-right text-red-400">{fmt(m.spent)}</td>
-                      <td className={`py-2 text-right font-bold ${m.remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {fmt(m.remaining)}
-                      </td>
-                      <td className={`py-2 text-right ${m.multiplier >= 1 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                        {fmt(m.multiplier)}x
-                      </td>
-                    </tr>
-                  ))}
+                <tbody>
+                  {monthly.map(m => {
+                    const earnedKey = `${m.month}-earned`
+                    const purchaseKey = `${m.month}-purchase`
+                    return (
+                      <>
+                        <tr key={m.month} className="border-b border-gray-100">
+                          <td className="py-2 text-gray-600 font-medium">{m.month}월</td>
+                          <td className="py-2 text-right text-gray-500">{fmt(m.kpiValue)}</td>
+                          <td className="py-2 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-blue-600">{fmt(m.earned)}</span>
+                              <button onClick={() => handleCellClick('earned', m.month, m)}
+                                className={`text-xs px-1 py-0.5 rounded transition-colors ${openCell === earnedKey ? 'bg-blue-100 text-blue-600' : 'text-gray-300 hover:text-blue-400'}`}>
+                                🔍
+                              </button>
+                            </div>
+                          </td>
+                          <td className="py-2 text-right text-gray-400">
+                            {m.direct > 0 ? (
+                              <>
+                                <span>{fmt(m.direct)}</span>
+                                {deal.direct_note && <p className="text-xs text-gray-300">{deal.direct_note}</p>}
+                              </>
+                            ) : '-'}
+                          </td>
+                          <td className="py-2 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-gray-400">{m.purchase > 0 ? fmt(m.purchase) : '-'}</span>
+                              {m.purchase > 0 && (
+                                <button onClick={() => handleCellClick('purchase', m.month, m)}
+                                  className={`text-xs px-1 py-0.5 rounded transition-colors ${openCell === purchaseKey ? 'bg-purple-100 text-purple-600' : 'text-gray-300 hover:text-purple-400'}`}>
+                                  🔍
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2 text-right text-red-400">{fmt(m.spent)}</td>
+                          <td className={`py-2 text-right font-bold ${m.remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {fmt(m.remaining)}
+                          </td>
+                          <td className={`py-2 text-right ${m.multiplier >= 1 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                            {fmt(m.multiplier)}x
+                          </td>
+                        </tr>
+                        {/* 번돈 상세 */}
+                        {openCell === earnedKey && (
+                          <tr key={`${m.month}-earned-detail`} className="bg-blue-50 border-b border-blue-100">
+                            <td colSpan={8} className="px-3 py-2 text-xs text-blue-700">
+                              KPI <strong>{fmt(m.kpiValue)}</strong> × <strong>{(deal.ratio * 100).toFixed(0)}%</strong> = <strong>{fmt(m.earned)}</strong> 백만원
+                            </td>
+                          </tr>
+                        )}
+                        {/* 내부매입 상세 */}
+                        {openCell === purchaseKey && (
+                          <tr key={`${m.month}-purchase-detail`} className="bg-purple-50 border-b border-purple-100">
+                            <td colSpan={8} className="px-3 py-2 text-xs">
+                              {cellLoading === purchaseKey ? (
+                                <span className="text-gray-400">불러오는 중...</span>
+                              ) : cellData[purchaseKey]?.sellers?.length > 0 ? (
+                                <div className="space-y-0.5">
+                                  {cellData[purchaseKey].sellers.map((s: any, i: number) => (
+                                    <div key={i} className="flex justify-between text-purple-700">
+                                      <span>{s.name} {s.isFullEarned ? '(번돈 전액)' : '(남는돈)'}</span>
+                                      <span className="font-medium">{fmt(s.contribution)}</span>
+                                    </div>
+                                  ))}
+                                  <div className="flex justify-between font-semibold text-purple-800 border-t border-purple-200 pt-0.5 mt-0.5">
+                                    <span>합계</span>
+                                    <span>{fmt(cellData[purchaseKey].total)}</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">매입 내역 없음</span>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )
+                  })}
                 </tbody>
                 <tfoot className="border-t-2 border-gray-300 text-sm font-semibold">
                   <tr>
