@@ -17,12 +17,16 @@ type Deal = {
   direct_note?: string | null
   start_month?: number | null
   end_month?: number | null
+  calc_type?: string | null
+  kpi_label_1?: string | null
+  kpi_label_2?: string | null
 }
 
 type ExistingKpi = {
   performance_deal_id: string
   month: number
   kpi_value: number
+  kpi_value_2?: number
   direct_cost: number
 }
 
@@ -50,21 +54,21 @@ export default function KpiSelfForm({
   const [uploadError, setUploadError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const [values, setValues] = useState<Record<string, { kpi: string; direct: string }>>(() => {
-    const init: Record<string, { kpi: string; direct: string }> = {}
+  const [values, setValues] = useState<Record<string, { kpi: string; kpi2: string; direct: string }>>(() => {
+    const init: Record<string, { kpi: string; kpi2: string; direct: string }> = {}
     deals.forEach(d => {
       const ex = existingKpi.find(k => k.performance_deal_id === d.id && k.month === currentMonth)
-      init[d.id] = { kpi: ex ? String(ex.kpi_value) : '', direct: ex ? String(ex.direct_cost) : '' }
+      init[d.id] = { kpi: ex ? String(ex.kpi_value) : '', kpi2: ex ? String(ex.kpi_value_2 ?? 0) : '', direct: ex ? String(ex.direct_cost) : '' }
     })
     return init
   })
 
   function handleMonthChange(m: number) {
     setSelectedMonth(m)
-    const next: Record<string, { kpi: string; direct: string }> = {}
+    const next: Record<string, { kpi: string; kpi2: string; direct: string }> = {}
     deals.forEach(d => {
       const ex = existingKpi.find(k => k.performance_deal_id === d.id && k.month === m)
-      next[d.id] = { kpi: ex ? String(ex.kpi_value) : '', direct: ex ? String(ex.direct_cost) : '' }
+      next[d.id] = { kpi: ex ? String(ex.kpi_value) : '', kpi2: ex ? String(ex.kpi_value_2 ?? 0) : '', direct: ex ? String(ex.direct_cost) : '' }
     })
     setValues(next)
     setSaved(false)
@@ -108,6 +112,7 @@ export default function KpiSelfForm({
           year: YEAR,
           month: selectedMonth,
           kpiValue: parseFloat(v.kpi || '0'),
+          kpiValue2: parseFloat(v.kpi2 || '0'),
           directCost: parseFloat(v.direct || '0'),
           attachmentUrl: publicUrl,
           sendEmail: true,
@@ -152,36 +157,57 @@ export default function KpiSelfForm({
 
       {/* 거래별 입력 카드 */}
       {deals.filter(deal => selectedMonth >= (deal.start_month ?? 1) && selectedMonth <= (deal.end_month ?? 12)).map(deal => {
-        const v = values[deal.id] || { kpi: '', direct: '' }
+        const v = values[deal.id] || { kpi: '', kpi2: '', direct: '' }
         const kpiNum = parseFloat(v.kpi || '0') || 0
+        const kpi2Num = parseFloat(v.kpi2 || '0') || 0
         const directNum = parseFloat(v.direct || '0') || 0
-        const earned = kpiNum * deal.ratio
+        const isProduct = deal.calc_type === 'product'
+        const earned = isProduct ? kpiNum * kpi2Num * deal.ratio : kpiNum * deal.ratio
         const spent = directNum
         const remaining = earned - spent
         const multiplier = salary * 2 > 0 ? remaining / (salary * 2) : 0
+        const hasKpi = isProduct ? kpiNum > 0 && kpi2Num > 0 : kpiNum > 0
 
         return (
           <div key={deal.id} className="bg-white rounded-xl border p-5 space-y-4">
             <div>
               <p className="font-semibold text-gray-900">{deal.title}</p>
               <p className="text-sm text-gray-400 mt-0.5">
-                {deal.calc_logic} · 비율 <span className="text-blue-600 font-medium">{(deal.ratio * 100).toFixed(0)}%</span>
+                {deal.calc_logic}
+                {isProduct
+                  ? <> · 단가 <span className="text-blue-600 font-medium">{(deal.ratio * 100).toFixed(0)}만원</span></>
+                  : <> · 비율 <span className="text-blue-600 font-medium">{(deal.ratio * 100).toFixed(0)}%</span></>
+                }
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid gap-3 ${isProduct ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  KPI 값 <span className="text-gray-400">(백만원)</span>
+                  {isProduct ? (deal.kpi_label_1 ?? 'KPI1') : <>KPI 값 <span className="text-gray-400">(백만원)</span></>}
                 </label>
                 <input
                   type="number"
                   value={v.kpi}
                   onChange={e => { setValues(prev => ({ ...prev, [deal.id]: { ...prev[deal.id], kpi: e.target.value } })); setSaved(false) }}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder="예: 494"
+                  placeholder={isProduct ? "예: 0.95" : "예: 494"}
                 />
               </div>
+              {isProduct && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {deal.kpi_label_2 ?? 'KPI2'}
+                  </label>
+                  <input
+                    type="number"
+                    value={v.kpi2}
+                    onChange={e => { setValues(prev => ({ ...prev, [deal.id]: { ...prev[deal.id], kpi2: e.target.value } })); setSaved(false) }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="예: 1000"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
                   직접비 {deal.direct_note
@@ -199,7 +225,7 @@ export default function KpiSelfForm({
             </div>
 
             {/* 실시간 계산 미리보기 */}
-            {kpiNum > 0 && (
+            {hasKpi && (
               <div className="bg-gray-50 rounded-lg p-3 grid grid-cols-4 gap-2 text-center text-xs">
                 <div>
                   <p className="text-gray-400">번돈</p>

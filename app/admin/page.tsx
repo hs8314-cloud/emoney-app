@@ -24,8 +24,8 @@ export default async function AdminPage() {
 
   // 각 테이블 개별 조회 후 JS에서 합산
   const [{ data: allDeals }, { data: allDealsAll }, { data: allEmps }, { data: affiliations }, { data: kpiAll }] = await Promise.all([
-    supabase.from('performance_deals').select('id, title, calc_logic, ratio, employee_id').eq('is_active', true),
-    supabase.from('performance_deals').select('id, ratio, employee_id, partner_id, start_month, end_month'),
+    supabase.from('performance_deals').select('id, title, calc_logic, ratio, calc_type, employee_id').eq('is_active', true),
+    supabase.from('performance_deals').select('id, ratio, calc_type, employee_id, partner_id, start_month, end_month'),
     supabase.from('employees').select('id, name, salary, affiliation_id'),
     supabase.from('affiliations').select('id, code'),
     supabase.from('monthly_kpi').select('*').eq('year', 2026).in('month', MONTHS),
@@ -56,7 +56,9 @@ export default async function AdminPage() {
       if (m < sm || m > em) continue
       const kpi = kpiByDealMonth[deal.id]?.[m]
       if (!kpi) continue
-      const earned = kpi.kpi_value * deal.ratio
+      const earned = deal.calc_type === 'product'
+        ? kpi.kpi_value * (kpi.kpi_value_2 ?? 0) * deal.ratio
+        : kpi.kpi_value * deal.ratio
       const storedSpent = kpi.direct_cost + kpi.purchase_cost + (kpi.external_purchase_cost ?? 0)
       const contribution = isFullEarned ? earned : earned - storedSpent
       if (!dynamicPurchase[deal.partner_id]) dynamicPurchase[deal.partner_id] = {}
@@ -74,7 +76,9 @@ export default async function AdminPage() {
     if (!employeeMap[emp.id]) {
       employeeMap[emp.id] = { name: emp.name, affiliation: emp.affCode, salary: emp.salary, months: {} }
     }
-    const earned = row.kpi_value * deal.ratio
+    const earned = deal.calc_type === 'product'
+      ? row.kpi_value * (row.kpi_value_2 ?? 0) * deal.ratio
+      : row.kpi_value * deal.ratio
     const purchase = dynamicPurchase[emp.id]?.[row.month] ?? 0
     const spent = row.direct_cost + purchase + (row.external_purchase_cost ?? 0)
     const remaining = earned - spent

@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
   if (!employee) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const { dealId, year, month, kpiValue, directCost, attachmentUrl, sendEmail } = await req.json()
+  const { dealId, year, month, kpiValue, kpiValue2, directCost, attachmentUrl, sendEmail } = await req.json()
 
   // 본인 거래인지 검증
   const { data: deal } = await supabase
@@ -40,6 +40,7 @@ export async function POST(req: Request) {
     await supabase.from('monthly_kpi')
       .update({
         kpi_value: kpiValue,
+        kpi_value_2: kpiValue2 ?? 0,
         direct_cost: directCost,
         ...(attachmentUrl ? { attachment_url: attachmentUrl } : {}),
       })
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
       performance_deal_id: dealId,
       year, month,
       kpi_value: kpiValue,
+      kpi_value_2: kpiValue2 ?? 0,
       direct_cost: directCost,
       purchase_cost: 0,
       external_purchase_cost: 0,

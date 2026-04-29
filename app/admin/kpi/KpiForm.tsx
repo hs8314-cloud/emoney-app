@@ -10,6 +10,9 @@ type Deal = {
   title: string
   calc_logic: string
   ratio: number
+  calc_type?: string | null
+  kpi_label_1?: string | null
+  kpi_label_2?: string | null
   employee: {
     id: string
     name: string
@@ -23,6 +26,7 @@ type KpiRow = {
   year: number
   month: number
   kpi_value: number
+  kpi_value_2?: number
   direct_cost: number
   purchase_cost: number
   external_purchase_cost: number
@@ -47,12 +51,13 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
   const [newAmount, setNewAmount] = useState('')
 
   // 초기값 세팅
-  const [values, setValues] = useState<Record<string, { kpi: string, direct: string, purchase: string, external: string }>>(() => {
-    const init: Record<string, { kpi: string, direct: string, purchase: string, external: string }> = {}
+  const [values, setValues] = useState<Record<string, { kpi: string, kpi2: string, direct: string, purchase: string, external: string }>>(() => {
+    const init: Record<string, { kpi: string, kpi2: string, direct: string, purchase: string, external: string }> = {}
     deals.forEach(d => {
       const existing = existingKpi.find(k => k.performance_deal_id === d.id && k.month === selectedMonth)
       init[d.id] = {
         kpi: existing ? String(existing.kpi_value) : '',
+        kpi2: existing ? String(existing.kpi_value_2 ?? 0) : '',
         direct: existing ? String(existing.direct_cost) : '',
         purchase: existing ? String(existing.purchase_cost) : '',
         external: existing ? String(existing.external_purchase_cost ?? 0) : '',
@@ -63,11 +68,12 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
 
   function handleMonthChange(m: number) {
     setSelectedMonth(m)
-    const next: Record<string, { kpi: string, direct: string, purchase: string, external: string }> = {}
+    const next: Record<string, { kpi: string, kpi2: string, direct: string, purchase: string, external: string }> = {}
     deals.forEach(d => {
       const existing = existingKpi.find(k => k.performance_deal_id === d.id && k.month === m)
       next[d.id] = {
         kpi: existing ? String(existing.kpi_value) : '',
+        kpi2: existing ? String(existing.kpi_value_2 ?? 0) : '',
         direct: existing ? String(existing.direct_cost) : '',
         purchase: existing ? String(existing.purchase_cost) : '',
         external: existing ? String(existing.external_purchase_cost ?? 0) : '',
@@ -168,7 +174,7 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
     setExSaved(true)
   }
 
-  function handleChange(dealId: string, field: 'kpi' | 'direct' | 'purchase' | 'external', val: string) {
+  function handleChange(dealId: string, field: 'kpi' | 'kpi2' | 'direct' | 'purchase' | 'external', val: string) {
     setValues(prev => ({ ...prev, [dealId]: { ...prev[dealId], [field]: val } }))
     setSaved(false)
   }
@@ -183,6 +189,7 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
         year: YEAR,
         month: selectedMonth,
         kpi_value: parseFloat(values[d.id]?.kpi || '0'),
+        kpi_value_2: parseFloat(values[d.id]?.kpi2 || '0'),
         direct_cost: parseFloat(values[d.id]?.direct || '0'),
         purchase_cost: parseFloat(values[d.id]?.purchase || '0'),
         external_purchase_cost: parseFloat(values[d.id]?.external || '0'),
@@ -234,9 +241,11 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
           </thead>
           <tbody className="divide-y divide-gray-100">
             {deals.map(d => {
-              const v = values[d.id] || { kpi: '', direct: '', purchase: '', external: '' }
+              const v = values[d.id] || { kpi: '', kpi2: '', direct: '', purchase: '', external: '' }
               const kpiNum = parseFloat(v.kpi || '0')
-              const earned = kpiNum * d.ratio
+              const kpi2Num = parseFloat(v.kpi2 || '0')
+              const isProduct = d.calc_type === 'product'
+              const earned = isProduct ? kpiNum * kpi2Num * d.ratio : kpiNum * d.ratio
               const isExSelected = exDealId === d.id
               return (
                 <tr key={d.id} className={`hover:bg-gray-50 ${isExSelected ? 'bg-orange-50' : ''}`}>
@@ -249,15 +258,39 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
                   </td>
                   <td className="px-4 py-2 font-medium text-gray-900">{d.employee?.name}</td>
                   <td className="px-4 py-2 text-gray-500 max-w-[200px] truncate text-xs">{d.title}</td>
-                  <td className="px-4 py-2 text-gray-400 text-xs">{d.calc_logic} ({(d.ratio * 100).toFixed(0)}%)</td>
+                  <td className="px-4 py-2 text-gray-400 text-xs">
+                    {d.calc_logic}
+                    {isProduct ? ` (${(d.ratio * 100).toFixed(0)}만원)` : ` (${(d.ratio * 100).toFixed(0)}%)`}
+                  </td>
                   <td className="px-4 py-2">
-                    <input
-                      type="number"
-                      value={v.kpi}
-                      onChange={e => handleChange(d.id, 'kpi', e.target.value)}
-                      className="w-24 text-right border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-                      placeholder="0"
-                    />
+                    {isProduct ? (
+                      <div className="flex flex-col gap-1">
+                        <input
+                          type="number"
+                          value={v.kpi}
+                          onChange={e => handleChange(d.id, 'kpi', e.target.value)}
+                          className="w-24 text-right border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          placeholder={d.kpi_label_1 ?? 'KPI1'}
+                          title={d.kpi_label_1 ?? 'KPI1'}
+                        />
+                        <input
+                          type="number"
+                          value={v.kpi2}
+                          onChange={e => handleChange(d.id, 'kpi2', e.target.value)}
+                          className="w-24 text-right border border-blue-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          placeholder={d.kpi_label_2 ?? 'KPI2'}
+                          title={d.kpi_label_2 ?? 'KPI2'}
+                        />
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        value={v.kpi}
+                        onChange={e => handleChange(d.id, 'kpi', e.target.value)}
+                        className="w-24 text-right border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        placeholder="0"
+                      />
+                    )}
                   </td>
                   <td className="px-4 py-2">
                     <input

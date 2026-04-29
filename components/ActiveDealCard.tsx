@@ -41,7 +41,7 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
 
     if (type === 'earned') {
       // 로컬 계산
-      setCellData(prev => ({ ...prev, [key]: { kpiValue: m.kpiValue, ratio: deal.ratio, earned: m.earned } }))
+      setCellData(prev => ({ ...prev, [key]: { kpiValue: m.kpiValue, kpiValue2: m.kpiValue2, ratio: deal.ratio, earned: m.earned } }))
       return
     }
 
@@ -112,14 +112,17 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
 
   // 월별 계산
   const monthly = kpiRows.map(r => {
-    const earned = r.kpi_value * deal.ratio
+    const kpi2 = r.kpi_value_2 ?? 0
+    const earned = deal.calc_type === 'product'
+      ? r.kpi_value * kpi2 * deal.ratio
+      : r.kpi_value * deal.ratio
     const direct = r.direct_cost
     const purchase = r.purchase_cost
     const external = r.external_purchase_cost ?? 0
     const spent = direct + purchase + external
     const remaining = earned - spent
     const multiplier = salary * 2 > 0 ? remaining / (salary * 2) : 0
-    return { month: r.month, kpiValue: r.kpi_value, earned, spent, remaining, multiplier, direct, purchase, external }
+    return { month: r.month, kpiValue: r.kpi_value, kpiValue2: kpi2, earned, spent, remaining, multiplier, direct, purchase, external }
   })
   const cumEarned = monthly.reduce((s, m) => s + m.earned, 0)
   const cumSpent = monthly.reduce((s, m) => s + m.spent, 0)
@@ -310,7 +313,11 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
                         {openCell === earnedKey && (
                           <tr key={`${m.month}-earned-detail`} className="bg-blue-50 border-b border-blue-100">
                             <td colSpan={8} className="px-3 py-2 text-xs text-blue-700">
-                              KPI <strong>{fmt(m.kpiValue)}</strong> × <strong>{(deal.ratio * 100).toFixed(0)}%</strong> = <strong>{fmt(m.earned)}</strong> 백만원
+                              {deal.calc_type === 'product' ? (
+                                <><strong>{deal.kpi_label_1 ?? '납기준수율'}</strong> {fmt(m.kpiValue)} × <strong>{deal.kpi_label_2 ?? '생산량'}</strong> {fmt(m.kpiValue2)} × <strong>{(deal.ratio * 100).toFixed(0)}만원</strong> = <strong>{fmt(m.earned)}</strong> 백만원</>
+                              ) : (
+                                <>KPI <strong>{fmt(m.kpiValue)}</strong> × <strong>{(deal.ratio * 100).toFixed(0)}%</strong> = <strong>{fmt(m.earned)}</strong> 백만원</>
+                              )}
                             </td>
                           </tr>
                         )}
