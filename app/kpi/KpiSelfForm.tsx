@@ -177,7 +177,7 @@ export default function KpiSelfForm({
               <p className="text-sm text-gray-400 mt-0.5">
                 {deal.calc_logic}
                 {isProduct
-                  ? <> · 단가 <span className="text-blue-600 font-medium">{(deal.ratio * 100).toFixed(0)}만원</span></>
+                  ? <> · 단가 <span className="text-blue-600 font-medium">{deal.ratio}백만원</span></>
                   : <> · 비율 <span className="text-blue-600 font-medium">{(deal.ratio * 100).toFixed(0)}%</span></>
                 }
               </p>

@@ -279,7 +279,7 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
                   <td className="px-4 py-2 text-gray-500 max-w-[200px] truncate text-xs">{d.title}</td>
                   <td className="px-4 py-2 text-gray-400 text-xs">
                     {d.calc_logic}
-                    {isProduct ? ` (${(d.ratio * 100).toFixed(0)}만원)` : ` (${(d.ratio * 100).toFixed(0)}%)`}
+                    {isProduct ? ` (${d.ratio}백만원)` : ` (${(d.ratio * 100).toFixed(0)}%)`}
                   </td>
                   <td className="px-4 py-2">
                     {isProduct ? (
