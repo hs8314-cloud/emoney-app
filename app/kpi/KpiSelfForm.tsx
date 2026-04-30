@@ -20,6 +20,7 @@ type Deal = {
   calc_type?: string | null
   kpi_label_1?: string | null
   kpi_label_2?: string | null
+  kpi_1_percent?: boolean | null
 }
 
 type ExistingKpi = {
@@ -162,7 +163,8 @@ export default function KpiSelfForm({
         const kpi2Num = parseFloat(v.kpi2 || '0') || 0
         const directNum = parseFloat(v.direct || '0') || 0
         const isProduct = deal.calc_type === 'product'
-        const earned = isProduct ? kpiNum * kpi2Num * deal.ratio : kpiNum * deal.ratio
+        const kpi1 = isProduct && deal.kpi_1_percent ? kpiNum / 100 : kpiNum
+        const earned = isProduct ? kpi1 * kpi2Num * deal.ratio : kpiNum * deal.ratio
         const spent = directNum
         const remaining = earned - spent
         const multiplier = salary * 2 > 0 ? remaining / (salary * 2) : 0

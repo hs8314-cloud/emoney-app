@@ -18,7 +18,7 @@ export default async function KpiInputPage() {
 
   // 중첩 join 버그 우회: 각 테이블 개별 조회 후 JS에서 합산
   const [{ data: allDeals }, { data: allEmps }, { data: affiliations }, { data: existingKpi }] = await Promise.all([
-    supabase.from('performance_deals').select('id, title, calc_logic, ratio, employee_id, calc_type, kpi_label_1, kpi_label_2').eq('is_active', true).order('created_at'),
+    supabase.from('performance_deals').select('id, title, calc_logic, ratio, employee_id, calc_type, kpi_label_1, kpi_label_2, kpi_1_percent').eq('is_active', true).order('created_at'),
     supabase.from('employees').select('id, name, salary, affiliation_id'),
     supabase.from('affiliations').select('id, code'),
     supabase.from('monthly_kpi').select('*').eq('year', 2026),

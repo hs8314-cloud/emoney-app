@@ -13,6 +13,7 @@ type Deal = {
   calc_type?: string | null
   kpi_label_1?: string | null
   kpi_label_2?: string | null
+  kpi_1_percent?: boolean | null
   employee: {
     id: string
     name: string
@@ -256,7 +257,8 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
               const kpiNum = parseFloat(v.kpi || '0')
               const kpi2Num = parseFloat(v.kpi2 || '0')
               const isProduct = d.calc_type === 'product'
-              const earned = isProduct ? kpiNum * kpi2Num * d.ratio : kpiNum * d.ratio
+              const kpi1 = isProduct && d.kpi_1_percent ? kpiNum / 100 : kpiNum
+              const earned = isProduct ? kpi1 * kpi2Num * d.ratio : kpiNum * d.ratio
               const isExSelected = exDealId === d.id
               const isFirst = idx === 0
               const rowSpan = group.deals.length

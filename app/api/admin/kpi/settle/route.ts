@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
   // 1. 전체 활성 거래 + 직원 이름 조회
   const [{ data: allDeals }, { data: allEmps }] = await Promise.all([
-    supabase.from('performance_deals').select('id, ratio, calc_type, employee_id, partner_id').eq('is_active', true),
+    supabase.from('performance_deals').select('id, ratio, calc_type, kpi_1_percent, employee_id, partner_id').eq('is_active', true),
     supabase.from('employees').select('id, name'),
   ])
 
@@ -42,8 +42,9 @@ export async function POST(req: Request) {
     if (!kpi) continue  // 해당 월 KPI 미입력 판매자는 건너뜀
 
     const sellerName = empMap[deal.employee_id]
+    const kpi1 = deal.calc_type === 'product' && deal.kpi_1_percent ? kpi.kpi_value / 100 : kpi.kpi_value
     const earned = deal.calc_type === 'product'
-      ? kpi.kpi_value * (kpi.kpi_value_2 ?? 0) * deal.ratio
+      ? kpi1 * (kpi.kpi_value_2 ?? 0) * deal.ratio
       : kpi.kpi_value * deal.ratio
     const spent = kpi.direct_cost + kpi.purchase_cost + (kpi.external_purchase_cost ?? 0)
     const remaining = earned - spent

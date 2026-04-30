@@ -113,8 +113,9 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
   // 월별 계산
   const monthly = kpiRows.map(r => {
     const kpi2 = r.kpi_value_2 ?? 0
+    const kpi1 = deal.calc_type === 'product' && deal.kpi_1_percent ? r.kpi_value / 100 : r.kpi_value
     const earned = deal.calc_type === 'product'
-      ? r.kpi_value * kpi2 * deal.ratio
+      ? kpi1 * kpi2 * deal.ratio
       : r.kpi_value * deal.ratio
     const direct = r.direct_cost
     const purchase = r.purchase_cost
@@ -314,7 +315,7 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
                           <tr key={`${m.month}-earned-detail`} className="bg-blue-50 border-b border-blue-100">
                             <td colSpan={8} className="px-3 py-2 text-xs text-blue-700">
                               {deal.calc_type === 'product' ? (
-                                <><strong>{deal.kpi_label_1 ?? '납기준수율'}</strong> {fmt(m.kpiValue)} × <strong>{deal.kpi_label_2 ?? '생산량'}</strong> {fmt(m.kpiValue2)} × <strong>{(deal.ratio * 100).toFixed(0)}만원</strong> = <strong>{fmt(m.earned)}</strong> 백만원</>
+                                <><strong>{deal.kpi_label_1 ?? '납기준수율'}</strong> {fmt(m.kpiValue)}{deal.kpi_1_percent ? `% (×${fmt(m.kpiValue/100)})` : ''} × <strong>{deal.kpi_label_2 ?? '생산량'}</strong> {fmt(m.kpiValue2)} × <strong>{(deal.ratio * 100).toFixed(0)}만원</strong> = <strong>{fmt(m.earned)}</strong> 백만원</>
                               ) : (
                                 <>KPI <strong>{fmt(m.kpiValue)}</strong> × <strong>{(deal.ratio * 100).toFixed(0)}%</strong> = <strong>{fmt(m.earned)}</strong> 백만원</>
                               )}

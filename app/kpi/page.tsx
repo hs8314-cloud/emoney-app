@@ -19,7 +19,7 @@ export default async function KpiSelfPage() {
   // 본인의 활성 성과거래
   const { data: deals } = await supabase
     .from('performance_deals')
-    .select('id, title, calc_logic, ratio, direct_note, start_month, end_month, calc_type, kpi_label_1, kpi_label_2')
+    .select('id, title, calc_logic, ratio, direct_note, start_month, end_month, calc_type, kpi_label_1, kpi_label_2, kpi_1_percent')
     .eq('employee_id', employee.id)
     .eq('is_active', true)
     .order('created_at')
