@@ -311,25 +311,48 @@ export default function AdminTabs({
 
       {/* 성과거래 탭 */}
       {tab === 'deals' && (
-        <div className="space-y-3 overflow-y-auto max-h-[620px] pr-1">
+        <div className="space-y-4 overflow-y-auto max-h-[700px] pr-1">
           {activeDeals.length === 0 ? (
             <div className="bg-white rounded-xl border p-8 text-center text-gray-400">활성 거래가 없습니다</div>
-          ) : activeDeals.map((deal: any) => {
+          ) : (() => {
+            // 사람별 그룹핑
+            const grouped: Record<string, { emp: any; empAff: string; deals: any[] }> = {}
+            for (const deal of activeDeals) {
+              const empId = deal.employee_id ?? deal.employee?.name ?? 'unknown'
+              const empAff = deal.employee?.affiliation?.code ?? deal.employee?.affiliation?.[0]?.code ?? ''
+              if (!grouped[empId]) grouped[empId] = { emp: deal.employee, empAff, deals: [] }
+              grouped[empId].deals.push(deal)
+            }
+            return Object.entries(grouped).map(([empId, group]) => (
+              <div key={empId} className="rounded-xl border overflow-hidden bg-white">
+                {/* 사람 헤더 */}
+                <div className="px-5 py-3 bg-gray-50 border-b flex items-center gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${AFF_COLOR[group.empAff] ?? 'bg-gray-100 text-gray-600'}`}>{group.empAff}</span>
+                  <span className="font-semibold text-gray-800">{group.emp?.name}</span>
+                  <span className="text-xs text-gray-400 ml-1">거래 {group.deals.length}건</span>
+                </div>
+                {/* 해당 사람의 거래 목록 */}
+                <div className="divide-y divide-gray-100">
+                {group.deals.map((deal: any) => {
             const partnerAff = deal.partner?.affiliation?.code ?? deal.partner?.affiliation?.[0]?.code
-            const empAff = deal.employee?.affiliation?.code ?? deal.employee?.affiliation?.[0]?.code
             return (
-              <div key={deal.id} className="bg-white rounded-xl border overflow-hidden">
-                <div className="p-5 flex items-start justify-between">
+              <div key={deal.id} className="overflow-hidden">
+                <div className="px-5 py-4 flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${AFF_COLOR[empAff] ?? 'bg-gray-100 text-gray-600'}`}>{empAff}</span>
-                      <span className="text-sm font-semibold text-gray-800">{deal.employee?.name}</span>
-                      {deal.partner && (
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      {deal.is_active ? (
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">활성</span>
+                      ) : (
+                        <span className="text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded font-medium">중단</span>
+                      )}
+                      {deal.partner ? (
                         <>
-                          <span className="text-xs text-gray-400">→ 매입</span>
+                          <span className="text-xs text-gray-400">매입 →</span>
                           <span className={`text-xs px-2 py-0.5 rounded font-medium ${AFF_COLOR[partnerAff] ?? 'bg-gray-100 text-gray-600'}`}>{partnerAff}</span>
                           <span className="text-sm text-gray-600">{deal.partner?.name}</span>
                         </>
+                      ) : (
+                        <span className="text-xs text-gray-400">매입자 미지정</span>
                       )}
                     </div>
                     <p className="font-medium text-gray-900">{deal.title}</p>
@@ -529,6 +552,10 @@ export default function AdminTabs({
               </div>
             )
           })}
+                </div>
+              </div>
+            ))
+          })()}
         </div>
       )}
 

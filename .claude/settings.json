@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(cd * && git add *)",
+      "Bash(cd * && git commit *)",
+      "Bash(cd * && git push *)",
+      "Bash(cd * && npm run build*)",
+      "Bash(cd * && npx tsc *)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
