@@ -561,27 +561,85 @@ export default function AdminTabs({
 
       {/* 내보내기 탭 (고형석만) */}
       {tab === 'export' && isExporter && (
-        <div className="bg-white rounded-xl border p-8">
-          <h3 className="font-semibold text-gray-800 mb-2">데이터 내보내기</h3>
-          <p className="text-sm text-gray-500 mb-6">현재 조회된 전체 직원의 성과 데이터를 CSV 파일로 다운로드합니다.</p>
-          <div className="space-y-3">
-            <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600">
-              <p className="font-medium mb-1">포함 데이터</p>
-              <ul className="space-y-1 text-gray-500">
-                <li>· 소속, 이름</li>
-                <li>· 월별 번돈 / 쓴돈 / 남는돈 / 배수</li>
-                <li>· 누적 번돈 / 쓴돈 / 남는돈 / 배수</li>
-              </ul>
-            </div>
-            <button
-              onClick={handleExport}
-              className="bg-gray-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors"
-            >
-              📥 CSV 다운로드 (2026년)
-            </button>
-          </div>
-        </div>
+        <ExportTab />
       )}
+    </div>
+  )
+}
+
+// ─── AMIS 형식 엑셀 내보내기 탭 ────────────────────────────────
+function ExportTab() {
+  const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  const currentMonth = new Date().getMonth() + 1
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleDownload() {
+    setDownloading(true)
+    try {
+      const res = await fetch(`/api/admin/export/excel?year=2026&month=${selectedMonth}`)
+      if (!res.ok) { alert('다운로드 실패'); return }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `동남아_개인수지업로드_2026년${selectedMonth}월.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl border p-8 space-y-6">
+      <div>
+        <h3 className="font-semibold text-gray-800 mb-1">데이터 내보내기</h3>
+        <p className="text-sm text-gray-500">AMIS 이셀수지표(라인) 형식으로 엑셀 파일을 다운로드합니다.</p>
+      </div>
+
+      {/* 월 선택 */}
+      <div>
+        <p className="text-sm font-medium text-gray-700 mb-2">월 선택</p>
+        <div className="flex gap-2 flex-wrap">
+          {MONTHS.map(m => (
+            <button key={m} onClick={() => setSelectedMonth(m)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                selectedMonth === m
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border text-gray-600 hover:border-blue-400'
+              }`}>
+              {m}월
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 포함 데이터 안내 */}
+      <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600">
+        <p className="font-medium mb-2">포함 데이터 (AMIS L~P 열)</p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-500">
+          <span><strong className="text-gray-700">L열 번돈(매총익)</strong> — KPI × 비율</span>
+          <span><strong className="text-gray-700">M열 쓴돈(합계)</strong> — 직접비 + 매입비</span>
+          <span><strong className="text-gray-700">N열 직접비</strong> — 직접비 + 외부매입</span>
+          <span><strong className="text-gray-700">O열 매입비</strong> — 매입자 지급액</span>
+          <span><strong className="text-gray-700">P열 남는돈</strong> — L − M</span>
+          <span><strong className="text-gray-700">Q열 세금(24.2%)</strong> — P × 24.2%</span>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">A~K 열(법인·이름·email 등)은 보유 데이터 기준으로 채워집니다.</p>
+      </div>
+
+      <button
+        onClick={handleDownload}
+        disabled={downloading}
+        className="bg-gray-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+      >
+        {downloading ? (
+          <><span className="animate-spin">⏳</span> 생성 중...</>
+        ) : (
+          <>📊 AMIS 엑셀 다운로드 ({selectedMonth}월)</>
+        )}
+      </button>
     </div>
   )
 }
