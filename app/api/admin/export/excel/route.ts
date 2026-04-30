@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     supabase.from('performance_deals')
       .select('id, ratio, calc_type, kpi_1_percent, employee_id, partner_id, start_month, end_month')
       .eq('is_active', true),
-    supabase.from('employees').select('id, name, salary, affiliation_id, email'),
+    supabase.from('employees').select('id, name, salary, affiliation_id, email, employee_no, grade, position_title'),
     supabase.from('affiliations').select('id, code'),
     supabase.from('monthly_kpi').select('*').eq('year', year).eq('month', month),
   ])
@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
   // 직원별 집계: earned, direct(직접비+외부매입), purchase(매입자로서 받는 금액)
   const empData: Record<string, {
     name: string; affCode: string; email: string
+    employee_no: string; grade: string; position_title: string
     earned: number; direct: number; purchase: number
     order: number
   }> = {}
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
       if (!e) return null
       empData[empId] = {
         name: e.name, affCode: e.affCode, email: e.email ?? '',
+        employee_no: e.employee_no ?? '', grade: e.grade ?? '', position_title: e.position_title ?? '',
         earned: 0, direct: 0, purchase: 0,
         order: orderCounter++,
       }
@@ -168,6 +170,9 @@ export async function GET(req: NextRequest) {
     cell(ws, COL.B, ri, emp.affCode)
     cell(ws, COL.F, ri, emp.name)
     cell(ws, COL.G, ri, emp.email)
+    if (emp.employee_no) cell(ws, COL.H, ri, emp.employee_no)
+    if (emp.grade) cell(ws, COL.I, ri, emp.grade)
+    if (emp.position_title) cell(ws, COL.J, ri, emp.position_title)
     cell(ws, COL.L, ri, round1(emp.earned))
     cell(ws, COL.M, ri, round1(spent))
     if (emp.direct > 0) cell(ws, COL.N, ri, round1(emp.direct))

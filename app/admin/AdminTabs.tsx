@@ -18,19 +18,24 @@ export default function AdminTabs({
   activeDeals,
   months,
   isExporter,
+  allEmployees,
 }: {
   employees: any[]
   activeDeals: any[]
   months: number[]
   isExporter: boolean
+  allEmployees: any[]
 }) {
   const tabs = [
     { key: 'summary', label: '전체 합계' },
     { key: 'deals', label: '성과거래' },
-    ...(isExporter ? [{ key: 'export', label: '데이터 내보내기' }] : []),
+    ...(isExporter ? [
+      { key: 'empinfo', label: '직원정보' },
+      { key: 'export', label: '데이터 내보내기' },
+    ] : []),
   ] as const
 
-  type TabKey = 'summary' | 'deals' | 'export'
+  type TabKey = 'summary' | 'deals' | 'empinfo' | 'export'
   const [tab, setTab] = useState<TabKey>('summary')
   const [stoppingId, setStoppingId] = useState<string | null>(null)
   // 중단처리: 월 선택 UI
@@ -559,10 +564,150 @@ export default function AdminTabs({
         </div>
       )}
 
+      {/* 직원정보 탭 */}
+      {tab === 'empinfo' && isExporter && (
+        <EmployeeInfoTab allEmployees={allEmployees} />
+      )}
+
       {/* 내보내기 탭 (고형석만) */}
       {tab === 'export' && isExporter && (
         <ExportTab />
       )}
+    </div>
+  )
+}
+
+// ─── 직원정보 편집 탭 ────────────────────────────────────────────
+function EmployeeInfoTab({ allEmployees }: { allEmployees: any[] }) {
+  type EmpRow = {
+    id: string; name: string; affCode: string; email: string
+    employee_no: string; grade: string; position_title: string
+  }
+  const [rows, setRows] = useState<EmpRow[]>(allEmployees)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<Partial<EmpRow>>({})
+  const [saving, setSaving] = useState(false)
+  const [savedId, setSavedId] = useState<string | null>(null)
+
+  const AFF_COLOR: Record<string, string> = {
+    TC: 'bg-blue-100 text-blue-700',
+    EV: 'bg-green-100 text-green-700',
+    SAVI: 'bg-purple-100 text-purple-700',
+  }
+
+  function startEdit(emp: EmpRow) {
+    setEditId(emp.id)
+    setDraft({ employee_no: emp.employee_no, grade: emp.grade, position_title: emp.position_title })
+    setSavedId(null)
+  }
+
+  function cancelEdit() { setEditId(null); setDraft({}) }
+
+  async function saveEdit(empId: string) {
+    setSaving(true)
+    const res = await fetch(`/api/admin/employees/${empId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(draft),
+    })
+    setSaving(false)
+    if (res.ok) {
+      setRows(prev => prev.map(r => r.id === empId ? { ...r, ...draft } as EmpRow : r))
+      setEditId(null)
+      setDraft({})
+      setSavedId(empId)
+      setTimeout(() => setSavedId(null), 2000)
+    } else {
+      alert('저장 실패')
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="px-6 py-4 border-b bg-gray-50 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-gray-800">직원정보 편집</h3>
+          <p className="text-xs text-gray-400 mt-0.5">사번 · 직급 · 직책을 입력하면 AMIS 엑셀 내보내기 시 자동 반영됩니다.</p>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-xs text-gray-500 border-b">
+            <tr>
+              <th className="px-4 py-3 text-left">소속</th>
+              <th className="px-4 py-3 text-left">이름</th>
+              <th className="px-4 py-3 text-left">이메일</th>
+              <th className="px-4 py-3 text-left">사번 <span className="text-blue-400">(H열)</span></th>
+              <th className="px-4 py-3 text-left">직급 <span className="text-blue-400">(I열)</span></th>
+              <th className="px-4 py-3 text-left">직책 <span className="text-blue-400">(J열)</span></th>
+              <th className="px-4 py-3 text-center">편집</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(emp => {
+              const isEditing = editId === emp.id
+              return (
+                <tr key={emp.id} className={`border-b ${isEditing ? 'bg-amber-50' : 'hover:bg-gray-50'}`}>
+                  <td className="px-4 py-2.5">
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${AFF_COLOR[emp.affCode] ?? 'bg-gray-100 text-gray-500'}`}>
+                      {emp.affCode}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 font-medium text-gray-900 whitespace-nowrap">{emp.name}</td>
+                  <td className="px-4 py-2.5 text-gray-400 text-xs">{emp.email}</td>
+                  {isEditing ? (
+                    <>
+                      <td className="px-4 py-2">
+                        <input value={draft.employee_no ?? ''} onChange={e => setDraft(d => ({ ...d, employee_no: e.target.value }))}
+                          className="w-28 border border-amber-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                          placeholder="예: 202301" />
+                      </td>
+                      <td className="px-4 py-2">
+                        <input value={draft.grade ?? ''} onChange={e => setDraft(d => ({ ...d, grade: e.target.value }))}
+                          className="w-20 border border-amber-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                          placeholder="예: 상무" />
+                      </td>
+                      <td className="px-4 py-2">
+                        <input value={draft.position_title ?? ''} onChange={e => setDraft(d => ({ ...d, position_title: e.target.value }))}
+                          className="w-32 border border-amber-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                          placeholder="예: 탕콤 공장장" />
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button onClick={() => saveEdit(emp.id)} disabled={saving}
+                            className="bg-amber-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-amber-600 disabled:opacity-50">
+                            {saving ? '...' : '저장'}
+                          </button>
+                          <button onClick={cancelEdit}
+                            className="border border-gray-300 text-gray-500 px-3 py-1 rounded text-xs hover:bg-gray-50">
+                            취소
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-4 py-2.5 text-gray-600">{emp.employee_no || <span className="text-gray-300">미입력</span>}</td>
+                      <td className="px-4 py-2.5 text-gray-600">{emp.grade || <span className="text-gray-300">미입력</span>}</td>
+                      <td className="px-4 py-2.5 text-gray-600">{emp.position_title || <span className="text-gray-300">미입력</span>}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        {savedId === emp.id ? (
+                          <span className="text-emerald-500 text-xs font-medium">✓ 저장됨</span>
+                        ) : (
+                          <button onClick={() => startEdit(emp)}
+                            className="text-xs border border-gray-300 text-gray-500 px-3 py-1 rounded hover:bg-gray-50 transition-colors">
+                            편집
+                          </button>
+                        )}
+                      </td>
+                    </>
+                  )}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

@@ -26,7 +26,7 @@ export default async function AdminPage() {
   const [{ data: allDeals }, { data: allDealsAll }, { data: allEmps }, { data: affiliations }, { data: kpiAll }] = await Promise.all([
     supabase.from('performance_deals').select('id, title, calc_logic, ratio, calc_type, kpi_1_percent, employee_id').eq('is_active', true),
     supabase.from('performance_deals').select('id, ratio, calc_type, kpi_1_percent, employee_id, partner_id, start_month, end_month'),
-    supabase.from('employees').select('id, name, salary, affiliation_id'),
+    supabase.from('employees').select('id, name, salary, affiliation_id, email, employee_no, grade, position_title'),
     supabase.from('affiliations').select('id, code'),
     supabase.from('monthly_kpi').select('*').eq('year', 2026).in('month', MONTHS),
   ])
@@ -110,6 +110,24 @@ export default async function AdminPage() {
 
   const employees = Object.values(employeeMap)
 
+  // 직원 정보 편집용: 전체 직원 목록 (소속별 정렬)
+  const AFF_ORDER: Record<string, number> = { TC: 0, EV: 1, SAVI: 2 }
+  const allEmployeesList = (allEmps || [])
+    .map((e: any) => ({
+      id: e.id,
+      name: e.name,
+      affCode: affMap[e.affiliation_id] ?? '',
+      email: e.email ?? '',
+      employee_no: e.employee_no ?? '',
+      grade: e.grade ?? '',
+      position_title: e.position_title ?? '',
+    }))
+    .sort((a: any, b: any) => {
+      const ao = AFF_ORDER[a.affCode] ?? 9
+      const bo = AFF_ORDER[b.affCode] ?? 9
+      return ao !== bo ? ao - bo : a.name.localeCompare(b.name, 'ko')
+    })
+
   // 전체 활성 거래 (JS에서 employee/partner 매핑)
   const { data: allActiveDeals } = await supabase
     .from('performance_deals')
@@ -154,6 +172,7 @@ export default async function AdminPage() {
           activeDeals={activeDeals || []}
           months={MONTHS}
           isExporter={isExporter}
+          allEmployees={allEmployeesList}
         />
       </main>
     </div>
