@@ -107,6 +107,13 @@ export default function AdminTabs({
     router.refresh()
   }
 
+  async function handleDeleteDeal(dealId: string, title: string) {
+    if (!confirm(`"${title}" 거래를 완전히 삭제하시겠습니까?\n\n입력된 KPI 데이터도 함께 삭제됩니다.`)) return
+    setStopSelectId(null)
+    await fetch(`/api/deals/${dealId}`, { method: 'DELETE' })
+    router.refresh()
+  }
+
   // 누적 계산
   function cumCalc(empMonths: Record<number, any>, salary: number) {
     const earned = months.reduce((s, m) => s + (empMonths[m]?.earned ?? 0), 0)
@@ -343,28 +350,36 @@ export default function AdminTabs({
                         {dealDetail[deal.id]?.rows.length > 0 ? '닫기' : '거래내용조회'}
                       </button>
                       {stopSelectId === deal.id ? (
-                        <div className="flex items-center gap-1">
-                          <select
-                            value={stopEndMonth}
-                            onChange={e => setStopEndMonth(Number(e.target.value))}
-                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-300"
-                          >
-                            {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
-                              <option key={m} value={m}>{m}월까지</option>
-                            ))}
-                          </select>
+                        <div className="flex flex-col items-end gap-1.5">
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={stopEndMonth}
+                              onChange={e => setStopEndMonth(Number(e.target.value))}
+                              className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-300"
+                            >
+                              {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                                <option key={m} value={m}>{m}월까지</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleStopConfirm(deal.id)}
+                              disabled={stoppingId === deal.id}
+                              className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition-colors disabled:opacity-50"
+                            >
+                              확인
+                            </button>
+                            <button
+                              onClick={() => setStopSelectId(null)}
+                              className="text-xs border border-gray-300 text-gray-500 px-2 py-1 rounded hover:bg-gray-50"
+                            >
+                              취소
+                            </button>
+                          </div>
                           <button
-                            onClick={() => handleStopConfirm(deal.id)}
-                            disabled={stoppingId === deal.id}
-                            className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition-colors disabled:opacity-50"
+                            onClick={() => handleDeleteDeal(deal.id, deal.title)}
+                            className="text-xs text-red-400 hover:text-red-600 underline transition-colors"
                           >
-                            확인
-                          </button>
-                          <button
-                            onClick={() => setStopSelectId(null)}
-                            className="text-xs border border-gray-300 text-gray-500 px-2 py-1 rounded hover:bg-gray-50"
-                          >
-                            취소
+                            🗑 거래 완전삭제
                           </button>
                         </div>
                       ) : (
