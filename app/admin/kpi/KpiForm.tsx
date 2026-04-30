@@ -239,24 +239,41 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
               <th className="px-4 py-3 text-right text-blue-600">번돈 (예상)</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {deals.map(d => {
+          <tbody>
+            {(() => {
+              // 사람별 그룹핑
+              const grouped: { empKey: string; emp: any; deals: typeof deals }[] = []
+              const seen = new Set<string>()
+              for (const d of deals) {
+                const key = d.employee?.id ?? d.employee?.name ?? 'unknown'
+                if (!seen.has(key)) {
+                  seen.add(key)
+                  grouped.push({ empKey: key, emp: d.employee, deals: deals.filter(x => (x.employee?.id ?? x.employee?.name) === key) })
+                }
+              }
+              return grouped.map(group => group.deals.map((d, idx) => {
               const v = values[d.id] || { kpi: '', kpi2: '', direct: '', purchase: '', external: '' }
               const kpiNum = parseFloat(v.kpi || '0')
               const kpi2Num = parseFloat(v.kpi2 || '0')
               const isProduct = d.calc_type === 'product'
               const earned = isProduct ? kpiNum * kpi2Num * d.ratio : kpiNum * d.ratio
               const isExSelected = exDealId === d.id
+              const isFirst = idx === 0
+              const rowSpan = group.deals.length
               return (
-                <tr key={d.id} className={`hover:bg-gray-50 ${isExSelected ? 'bg-orange-50' : ''}`}>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      d.employee?.affiliation?.code === 'TC' ? 'bg-blue-100 text-blue-700' :
-                      d.employee?.affiliation?.code === 'SAVI' ? 'bg-purple-100 text-purple-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>{d.employee?.affiliation?.code}</span>
-                  </td>
-                  <td className="px-4 py-2 font-medium text-gray-900">{d.employee?.name}</td>
+                <tr key={d.id} className={`${isExSelected ? 'bg-orange-50' : 'hover:bg-gray-50'} ${isFirst && group.deals.length > 1 ? 'border-t-2 border-gray-200' : 'border-t border-gray-100'}`}>
+                  {isFirst && (
+                    <>
+                      <td rowSpan={rowSpan} className="px-4 py-2 align-middle border-r border-gray-100">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
+                          d.employee?.affiliation?.code === 'TC' ? 'bg-blue-100 text-blue-700' :
+                          d.employee?.affiliation?.code === 'SAVI' ? 'bg-purple-100 text-purple-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>{d.employee?.affiliation?.code}</span>
+                      </td>
+                      <td rowSpan={rowSpan} className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap align-middle border-r border-gray-100">{d.employee?.name}</td>
+                    </>
+                  )}
                   <td className="px-4 py-2 text-gray-500 max-w-[200px] truncate text-xs">{d.title}</td>
                   <td className="px-4 py-2 text-gray-400 text-xs">
                     {d.calc_logic}
@@ -337,7 +354,8 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
                   </td>
                 </tr>
               )
-            })}
+            }))
+            })()}
           </tbody>
         </table>
       </div>
