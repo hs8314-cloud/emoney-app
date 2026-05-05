@@ -33,10 +33,13 @@ export default async function DashboardPage() {
   // (관리자도 개인 대시보드 접근 허용 - 헤더에 관리자 링크 제공)
 
   // 내 성과거래 ID 목록 먼저 조회 (중단된 거래도 포함 - 누적 데이터 표시 위해)
-  const { data: myDeals } = await supabase
+  const r1 = await supabase
     .from('performance_deals')
     .select('id, title, calc_logic, ratio, ratio_changes, is_active, direct_note, calc_type, kpi_1_percent')
     .eq('employee_id', employee.id)
+  const myDeals: any[] | null = r1.error
+    ? (await supabase.from('performance_deals').select('id, title, calc_logic, ratio, is_active, direct_note, calc_type, kpi_1_percent').eq('employee_id', employee.id)).data as any[]
+    : r1.data as any[]
 
   const myDealIds = (myDeals || []).map((d: any) => d.id)
 

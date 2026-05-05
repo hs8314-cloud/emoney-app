@@ -24,13 +24,25 @@ export default async function AdminPage() {
   const FULL_EARNED = new Set(['임홍진', '김재훈'])
 
   // 각 테이블 개별 조회 후 JS에서 합산
-  const [{ data: allDeals }, { data: allDealsAll }, { data: allEmps }, { data: affiliations }, { data: kpiAll }] = await Promise.all([
+  const [r1, r2, { data: allEmps }, { data: affiliations }, { data: kpiAll }] = await Promise.all([
     supabase.from('performance_deals').select('id, title, calc_logic, ratio, ratio_changes, calc_type, kpi_1_percent, employee_id').eq('is_active', true),
     supabase.from('performance_deals').select('id, ratio, ratio_changes, calc_type, kpi_1_percent, employee_id, partner_id, start_month, end_month'),
     supabase.from('employees').select('id, name, salary, affiliation_id, email, employee_no, grade, position_title'),
     supabase.from('affiliations').select('id, code'),
     supabase.from('monthly_kpi').select('*').eq('year', 2026).in('month', MONTHS),
   ])
+
+  // ratio_changes 컬럼 미존재(스키마 캐시 미반영) 시 fallback
+  let allDeals = r1.data
+  let allDealsAll = r2.data
+  if (r1.error || r2.error) {
+    const [fb1, fb2] = await Promise.all([
+      supabase.from('performance_deals').select('id, title, calc_logic, ratio, calc_type, kpi_1_percent, employee_id').eq('is_active', true),
+      supabase.from('performance_deals').select('id, ratio, calc_type, kpi_1_percent, employee_id, partner_id, start_month, end_month'),
+    ])
+    allDeals = fb1.data as any[]
+    allDealsAll = fb2.data as any[]
+  }
 
   const affMap = Object.fromEntries((affiliations || []).map((a: any) => [a.id, a.code]))
   const empMap = Object.fromEntries((allEmps || []).map((e: any) => [e.id, { ...e, affCode: affMap[e.affiliation_id] }]))
