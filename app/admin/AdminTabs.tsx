@@ -396,23 +396,41 @@ export default function AdminTabs({
                     </div>
                     <p className="font-medium text-gray-900">{deal.title}</p>
                     <p className="text-sm text-gray-500 mt-0.5">
-                      {deal.calc_logic} · <span className="text-blue-600 font-medium">{(deal.ratio * 100).toFixed(0)}%</span>
-                      <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
-                        {deal.start_month ?? 1}월~{deal.end_month ?? 12}월
-                      </span>
+                      {deal.calc_logic}
                     </p>
-                    {/* 월별 비율 변경 이력 표시 */}
+                    {/* 기간별 비율 표시 */}
                     {(() => {
                       const changes = ratioChanges[deal.id] ?? deal.ratio_changes ?? {}
-                      const entries = Object.entries(changes).sort((a, b) => Number(a[0]) - Number(b[0]))
-                      if (!entries.length) return null
+                      const entries = Object.entries(changes)
+                        .map(([m, r]) => ({ m: Number(m), r: Number(r) }))
+                        .sort((a, b) => a.m - b.m)
+                      const startMonth = deal.start_month ?? 1
+                      const endMonth = deal.end_month ?? 12
+
+                      // 구간 목록 생성: [{from, to, ratio}]
+                      const segments: { from: number; to: number; ratio: number }[] = []
+                      let prev = startMonth
+                      for (const { m, r } of entries) {
+                        if (m > prev) segments.push({ from: prev, to: m - 1, ratio: deal.ratio })
+                        prev = m
+                        const nextM = entries.find(e => e.m > m)?.m ?? (endMonth + 1)
+                        segments.push({ from: m, to: nextM - 1, ratio: r })
+                        prev = nextM
+                      }
+                      if (entries.length === 0) segments.push({ from: startMonth, to: endMonth, ratio: deal.ratio })
+
                       return (
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {entries.map(([m, r]) => (
-                            <span key={m} className="inline-flex items-center gap-1 text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-full">
-                              {m}월~ {(Number(r) * 100).toFixed(0)}%
-                              <button onClick={() => handleRatioChangeDelete(deal.id, Number(m))}
-                                className="text-amber-400 hover:text-red-500 font-bold leading-none">×</button>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
+                          {segments.map((seg, i) => (
+                            <span key={i} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium
+                              ${i === 0 && entries.length === 0 ? 'bg-gray-100 text-gray-600' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
+                              {seg.from === seg.to ? `${seg.from}월` : `${seg.from}~${seg.to}월`}
+                              &nbsp;{(seg.ratio * 100).toFixed(0)}%
+                              {/* 변경 구간은 × 삭제 버튼 */}
+                              {entries.find(e => e.m === seg.from) && (
+                                <button onClick={() => handleRatioChangeDelete(deal.id, seg.from)}
+                                  className="text-blue-300 hover:text-red-500 font-bold leading-none ml-0.5">×</button>
+                              )}
                             </span>
                           ))}
                         </div>
