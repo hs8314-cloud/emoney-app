@@ -137,7 +137,10 @@ export default function AdminTabs({
       setRatioChanges(prev => ({ ...prev, [dealId]: data.ratio_changes }))
       setRatioChangeId(null)
       setRatioChangeValue('')
-    } else alert('저장 실패')
+    } else {
+      const errMsg = (await res.json().catch(() => ({}))).error ?? '알 수 없는 오류'
+      alert(`저장 실패: ${errMsg}\n\nSupabase에서 ratio_changes 컬럼이 추가됐는지 확인하세요.`)
+    }
   }
 
   async function handleRatioChangeDelete(dealId: string, fromMonth: number) {
@@ -148,7 +151,7 @@ export default function AdminTabs({
     })
     const data = await res.json()
     if (res.ok) setRatioChanges(prev => ({ ...prev, [dealId]: data.ratio_changes }))
-    else alert('삭제 실패')
+    else alert(`삭제 실패: ${data.error ?? ''}`)
   }
 
   // 누적 계산
