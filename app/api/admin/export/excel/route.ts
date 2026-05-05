@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import * as XLSX from 'xlsx'
+import { effectiveRatio } from '@/lib/deal-utils'
 
 const FULL_EARNED = new Set(['임홍진', '김재훈'])
 
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
     { data: kpiRows },
   ] = await Promise.all([
     supabase.from('performance_deals')
-      .select('id, ratio, calc_type, kpi_1_percent, employee_id, partner_id, start_month, end_month')
+      .select('id, ratio, ratio_changes, calc_type, kpi_1_percent, employee_id, partner_id, start_month, end_month')
       .eq('is_active', true),
     supabase.from('employees').select('id, name, salary, affiliation_id, email, employee_no, grade, position_title'),
     supabase.from('affiliations').select('id, code'),
@@ -98,11 +99,12 @@ export async function GET(req: NextRequest) {
     if (!sellerEntry) continue
 
     // 번돈 계산
+    const ratio = effectiveRatio(deal, month)
     const kpi1 = deal.calc_type === 'product' && deal.kpi_1_percent
       ? kpi.kpi_value / 100
       : kpi.kpi_value
     const earned = deal.calc_type === 'product'
-      ? kpi1 * (kpi.kpi_value_2 ?? 0) * deal.ratio
+      ? kpi1 * (kpi.kpi_value_2 ?? 0) * ratio
       : kpi.kpi_value * deal.ratio
 
     // 직접비 (직접 + 외부매입)

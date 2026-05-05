@@ -10,6 +10,7 @@ type Deal = {
   title: string
   calc_logic: string
   ratio: number
+  ratio_changes?: Record<string, number> | null
   calc_type?: string | null
   kpi_label_1?: string | null
   kpi_label_2?: string | null
@@ -257,8 +258,12 @@ export default function KpiForm({ deals, existingKpi }: { deals: Deal[], existin
               const kpiNum = parseFloat(v.kpi || '0')
               const kpi2Num = parseFloat(v.kpi2 || '0')
               const isProduct = d.calc_type === 'product'
+              // 선택된 월의 유효 비율 계산
+              const changes = d.ratio_changes ?? {}
+              const applicable = Object.keys(changes).map(Number).filter(k => k <= selectedMonth)
+              const activeRatio = applicable.length > 0 ? changes[String(Math.max(...applicable))] : d.ratio
               const kpi1 = isProduct && d.kpi_1_percent ? kpiNum / 100 : kpiNum
-              const earned = isProduct ? kpi1 * kpi2Num * d.ratio : kpiNum * d.ratio
+              const earned = isProduct ? kpi1 * kpi2Num * activeRatio : kpiNum * activeRatio
               const isExSelected = exDealId === d.id
               const isFirst = idx === 0
               const rowSpan = group.deals.length

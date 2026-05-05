@@ -41,6 +41,11 @@ export default function AdminTabs({
   // 중단처리: 월 선택 UI
   const [stopSelectId, setStopSelectId] = useState<string | null>(null)
   const [stopEndMonth, setStopEndMonth] = useState<number>(new Date().getMonth() + 1)
+  // 비율변경 UI
+  const [ratioChangeId, setRatioChangeId] = useState<string | null>(null)
+  const [ratioChangeMonth, setRatioChangeMonth] = useState<number>(4)
+  const [ratioChangeValue, setRatioChangeValue] = useState<string>('')
+  const [ratioChanges, setRatioChanges] = useState<Record<string, Record<string, number>>>({}) // dealId -> {month: ratio}
   const [dealDetail, setDealDetail] = useState<Record<string, { loading: boolean; rows: any[] }>>({})
   // 셀 조회 상세: key = `${dealId}-${month}-${field}`
   const [openCell, setOpenCell] = useState<string | null>(null)
@@ -117,6 +122,33 @@ export default function AdminTabs({
     setStopSelectId(null)
     await fetch(`/api/deals/${dealId}`, { method: 'DELETE' })
     router.refresh()
+  }
+
+  async function handleRatioChangeSave(dealId: string) {
+    const newRatio = parseFloat(ratioChangeValue) / 100
+    if (isNaN(newRatio) || newRatio <= 0) { alert('유효한 비율을 입력하세요'); return }
+    const res = await fetch(`/api/admin/deals/${dealId}/ratio`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromMonth: ratioChangeMonth, ratio: newRatio }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setRatioChanges(prev => ({ ...prev, [dealId]: data.ratio_changes }))
+      setRatioChangeId(null)
+      setRatioChangeValue('')
+    } else alert('저장 실패')
+  }
+
+  async function handleRatioChangeDelete(dealId: string, fromMonth: number) {
+    const res = await fetch(`/api/admin/deals/${dealId}/ratio`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromMonth }),
+    })
+    const data = await res.json()
+    if (res.ok) setRatioChanges(prev => ({ ...prev, [dealId]: data.ratio_changes }))
+    else alert('삭제 실패')
   }
 
   // 누적 계산
@@ -367,6 +399,23 @@ export default function AdminTabs({
                         {deal.start_month ?? 1}월~{deal.end_month ?? 12}월
                       </span>
                     </p>
+                    {/* 월별 비율 변경 이력 표시 */}
+                    {(() => {
+                      const changes = ratioChanges[deal.id] ?? deal.ratio_changes ?? {}
+                      const entries = Object.entries(changes).sort((a, b) => Number(a[0]) - Number(b[0]))
+                      if (!entries.length) return null
+                      return (
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {entries.map(([m, r]) => (
+                            <span key={m} className="inline-flex items-center gap-1 text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-full">
+                              {m}월~ {(Number(r) * 100).toFixed(0)}%
+                              <button onClick={() => handleRatioChangeDelete(deal.id, Number(m))}
+                                className="text-amber-400 hover:text-red-500 font-bold leading-none">×</button>
+                            </span>
+                          ))}
+                        </div>
+                      )
+                    })()}
                   </div>
                   <div className="flex flex-col items-end gap-2 ml-4 flex-shrink-0">
                     <p className="text-xs text-gray-400">{new Date(deal.created_at).toLocaleDateString('ko-KR')}</p>
@@ -377,6 +426,29 @@ export default function AdminTabs({
                       >
                         {dealDetail[deal.id]?.rows.length > 0 ? '닫기' : '거래내용조회'}
                       </button>
+                      {ratioChangeId === deal.id ? (
+                        <div className="flex items-center gap-1">
+                          <select value={ratioChangeMonth} onChange={e => setRatioChangeMonth(Number(e.target.value))}
+                            className="text-xs border border-amber-300 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                            {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <option key={m} value={m}>{m}월~</option>)}
+                          </select>
+                          <input type="number" value={ratioChangeValue} onChange={e => setRatioChangeValue(e.target.value)}
+                            placeholder="%" min="0" max="100" step="0.1"
+                            className="w-14 text-xs border border-amber-300 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                          <span className="text-xs text-gray-400">%</span>
+                          <button onClick={() => handleRatioChangeSave(deal.id)}
+                            className="text-xs bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600">저장</button>
+                          <button onClick={() => { setRatioChangeId(null); setRatioChangeValue('') }}
+                            className="text-xs border border-gray-300 text-gray-500 px-2 py-1 rounded hover:bg-gray-50">취소</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setRatioChangeId(deal.id); setRatioChangeMonth(new Date().getMonth() + 1); setRatioChangeValue('') }}
+                          className="text-xs border border-amber-300 text-amber-600 px-3 py-1 rounded hover:bg-amber-50 transition-colors"
+                        >
+                          비율변경
+                        </button>
+                      )}
                       {stopSelectId === deal.id ? (
                         <div className="flex flex-col items-end gap-1.5">
                           <div className="flex items-center gap-1">

@@ -1,5 +1,6 @@
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { effectiveRatio } from '@/lib/deal-utils'
 
 // 번돈 전액을 매입자에게 기여하는 예외 판매자
 const FULL_EARNED_SELLERS = ['임홍진', '김재훈']
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
 
   // 1. 전체 활성 거래 + 직원 이름 조회
   const [{ data: allDeals }, { data: allEmps }] = await Promise.all([
-    supabase.from('performance_deals').select('id, ratio, calc_type, kpi_1_percent, employee_id, partner_id').eq('is_active', true),
+    supabase.from('performance_deals').select('id, ratio, ratio_changes, calc_type, kpi_1_percent, employee_id, partner_id').eq('is_active', true),
     supabase.from('employees').select('id, name'),
   ])
 
@@ -42,10 +43,11 @@ export async function POST(req: Request) {
     if (!kpi) continue  // 해당 월 KPI 미입력 판매자는 건너뜀
 
     const sellerName = empMap[deal.employee_id]
+    const ratio = effectiveRatio(deal, month)
     const kpi1 = deal.calc_type === 'product' && deal.kpi_1_percent ? kpi.kpi_value / 100 : kpi.kpi_value
     const earned = deal.calc_type === 'product'
-      ? kpi1 * (kpi.kpi_value_2 ?? 0) * deal.ratio
-      : kpi.kpi_value * deal.ratio
+      ? kpi1 * (kpi.kpi_value_2 ?? 0) * ratio
+      : kpi.kpi_value * ratio
     const spent = kpi.direct_cost + kpi.purchase_cost + (kpi.external_purchase_cost ?? 0)
     const remaining = earned - spent
 

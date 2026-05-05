@@ -4,6 +4,7 @@ import LogoutButton from '@/components/LogoutButton'
 import NoticeBanner from '@/components/NoticeBanner'
 import ActiveDealCard from '@/components/ActiveDealCard'
 import Link from 'next/link'
+import { effectiveRatio } from '@/lib/deal-utils'
 
 function fmt(n: number) {
   return (Math.round(n * 10) / 10).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -34,7 +35,7 @@ export default async function DashboardPage() {
   // 내 성과거래 ID 목록 먼저 조회 (중단된 거래도 포함 - 누적 데이터 표시 위해)
   const { data: myDeals } = await supabase
     .from('performance_deals')
-    .select('id, title, calc_logic, ratio, is_active, direct_note, calc_type, kpi_1_percent')
+    .select('id, title, calc_logic, ratio, ratio_changes, is_active, direct_note, calc_type, kpi_1_percent')
     .eq('employee_id', employee.id)
 
   const myDealIds = (myDeals || []).map((d: any) => d.id)
@@ -60,10 +61,11 @@ export default async function DashboardPage() {
   // 월별 계산 (쓴돈 구성요소 포함)
   const monthly = rows.map((r: any) => {
     const deal = r.performance_deal
+    const ratio = effectiveRatio(deal, r.month)
     const kpi1 = deal.calc_type === 'product' && deal.kpi_1_percent ? r.kpi_value / 100 : r.kpi_value
     const earned = deal.calc_type === 'product'
-      ? kpi1 * (r.kpi_value_2 ?? 0) * deal.ratio
-      : r.kpi_value * deal.ratio
+      ? kpi1 * (r.kpi_value_2 ?? 0) * ratio
+      : r.kpi_value * ratio
     const direct = r.direct_cost
     const purchase = r.purchase_cost
     const external = r.external_purchase_cost ?? 0

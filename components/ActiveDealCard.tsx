@@ -110,13 +110,22 @@ export default function ActiveDealCard({ deal, salary }: { deal: any; salary: nu
     router.refresh()
   }
 
+  // 해당 월의 유효 비율 계산
+  function getEffectiveRatio(month: number): number {
+    const changes: Record<string, number> = deal.ratio_changes ?? {}
+    const applicable = Object.keys(changes).map(Number).filter(k => k <= month)
+    if (applicable.length === 0) return deal.ratio
+    return changes[String(Math.max(...applicable))]
+  }
+
   // 월별 계산
   const monthly = kpiRows.map(r => {
     const kpi2 = r.kpi_value_2 ?? 0
+    const ratio = getEffectiveRatio(r.month)
     const kpi1 = deal.calc_type === 'product' && deal.kpi_1_percent ? r.kpi_value / 100 : r.kpi_value
     const earned = deal.calc_type === 'product'
-      ? kpi1 * kpi2 * deal.ratio
-      : r.kpi_value * deal.ratio
+      ? kpi1 * kpi2 * ratio
+      : r.kpi_value * ratio
     const direct = r.direct_cost
     const purchase = r.purchase_cost
     const external = r.external_purchase_cost ?? 0

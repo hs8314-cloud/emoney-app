@@ -1,5 +1,6 @@
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { effectiveRatio } from '@/lib/deal-utils'
 
 const FULL_EARNED_SELLERS = ['임홍진', '김재훈']
 
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
   // is_active true/false 모두 포함 — 유효 기간은 아래 month 범위 체크로 처리
   const { data: sellerDeals } = await supabase
     .from('performance_deals')
-    .select('id, ratio, calc_type, kpi_1_percent, employee_id, start_month, end_month')
+    .select('id, ratio, ratio_changes, calc_type, kpi_1_percent, employee_id, start_month, end_month')
     .eq('partner_id', deal.employee_id)
 
   if (!sellerDeals?.length) {
@@ -59,10 +60,11 @@ export async function GET(req: Request) {
       const kpi = kpiMap[d.id]
       if (!kpi) return null
       const sellerName = empMap[d.employee_id] ?? '?'
+      const ratio = effectiveRatio(d, month)
       const kpi1 = d.calc_type === 'product' && d.kpi_1_percent ? kpi.kpi_value / 100 : kpi.kpi_value
       const earned = d.calc_type === 'product'
-        ? kpi1 * (kpi.kpi_value_2 ?? 0) * d.ratio
-        : kpi.kpi_value * d.ratio
+        ? kpi1 * (kpi.kpi_value_2 ?? 0) * ratio
+        : kpi.kpi_value * ratio
       const spent = kpi.direct_cost + kpi.purchase_cost + (kpi.external_purchase_cost ?? 0)
       const remaining = earned - spent
       const isFullEarned = FULL_EARNED_SELLERS.includes(sellerName)
