@@ -21,11 +21,16 @@ export async function PATCH(
   const { fromMonth, ratio } = await req.json()
 
   // 기존 ratio_changes 불러와서 병합
-  const { data: deal } = await supabase
+  const { data: deal, error: fetchErr } = await supabase
     .from('performance_deals')
     .select('ratio_changes')
     .eq('id', id)
     .single()
+
+  if (fetchErr) {
+    console.error('[ratio PATCH] fetch error:', fetchErr)
+    return NextResponse.json({ error: `fetch: ${fetchErr.message}` }, { status: 500 })
+  }
 
   const current = (deal?.ratio_changes as Record<string, number>) ?? {}
   const updated = { ...current, [String(fromMonth)]: ratio }
@@ -35,7 +40,10 @@ export async function PATCH(
     .update({ ratio_changes: updated })
     .eq('id', id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[ratio PATCH] update error:', error)
+    return NextResponse.json({ error: `update: ${error.message}` }, { status: 500 })
+  }
   return NextResponse.json({ success: true, ratio_changes: updated })
 }
 

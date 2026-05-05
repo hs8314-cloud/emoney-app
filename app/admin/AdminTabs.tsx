@@ -132,14 +132,13 @@ export default function AdminTabs({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fromMonth: ratioChangeMonth, ratio: newRatio }),
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
     if (res.ok) {
       setRatioChanges(prev => ({ ...prev, [dealId]: data.ratio_changes }))
       setRatioChangeId(null)
       setRatioChangeValue('')
     } else {
-      const errMsg = (await res.json().catch(() => ({}))).error ?? '알 수 없는 오류'
-      alert(`저장 실패: ${errMsg}\n\nSupabase에서 ratio_changes 컬럼이 추가됐는지 확인하세요.`)
+      alert(`저장 실패 (${res.status}): ${data.error ?? '알 수 없는 오류'}`)
     }
   }
 
